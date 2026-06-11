@@ -3,6 +3,7 @@ package com.sdms.ui.user;
 import com.sdms.model.Student;
 import com.sdms.model.User;
 import com.sdms.utils.DataStore;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
@@ -48,7 +49,7 @@ public class StudentProfilePanel extends JPanel {
     private Student findStudent() {
         String sid = currentUser.getStudentId();
         if (sid == null) return null;
-        return DataStore.getStudents().stream()
+        return 	DatabaseService.getAllStudents().stream()
             .filter(s -> s.getId().equals(sid))
             .findFirst().orElse(null);
     }

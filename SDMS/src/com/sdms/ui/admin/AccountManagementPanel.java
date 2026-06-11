@@ -1,7 +1,11 @@
 package com.sdms.ui.admin;
 
+
+import java.security.MessageDigest;
+
 import com.sdms.utils.DataStore;
 import com.sdms.utils.DataStore.PendingAccount;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
@@ -55,7 +59,7 @@ public class AccountManagementPanel extends JPanel {
         sub.setFont(UITheme.FONT_TINY);
         sub.setForeground(UITheme.TEXT_MUTED);
 
-        long pending = DataStore.getPendingAccounts().stream()
+        long pending = DatabaseService.getAllPendingAccounts().stream()
             .filter(a -> a.getStatus() == PendingAccount.Status.PENDING).count();
 
         lblPendingBadge = new JLabel(pending > 0 ? "  " + pending + " chờ duyệt  " : "");
@@ -94,7 +98,7 @@ public class AccountManagementPanel extends JPanel {
         row.setOpaque(false);
         row.setBorder(new EmptyBorder(0, 0, 8, 0));
 
-        List<PendingAccount> all = DataStore.getPendingAccounts();
+        List<PendingAccount> all = DatabaseService.getAllPendingAccounts();
         long total    = all.size();
         long pending  = all.stream().filter(a -> a.getStatus() == PendingAccount.Status.PENDING).count();
         long approved = all.stream().filter(a -> a.getStatus() == PendingAccount.Status.APPROVED).count();
@@ -278,7 +282,7 @@ public class AccountManagementPanel extends JPanel {
     private void refreshTable() {
         String q = tfSearch == null ? "" : tfSearch.getText().trim().toLowerCase();
 
-        List<PendingAccount> data = DataStore.getPendingAccounts().stream()
+        List<PendingAccount> data = DatabaseService.getAllPendingAccounts().stream()
             .filter(a -> {
                 switch (filterStatus) {
                     case "Chờ duyệt": return a.getStatus() == PendingAccount.Status.PENDING;
@@ -300,11 +304,11 @@ public class AccountManagementPanel extends JPanel {
 
         if (lblCount != null)
             lblCount.setText("  Hiển thị " + data.size()
-                + " / " + DataStore.getPendingAccounts().size() + " đơn đăng ký");
+                + " / " + DatabaseService.getAllPendingAccounts().size() + " đơn đăng ký");
 
         // Cập nhật badge chờ duyệt
         if (lblPendingBadge != null) {
-            long pending = DataStore.getPendingAccounts().stream()
+            long pending = DatabaseService.getAllPendingAccounts().stream()
                 .filter(a -> a.getStatus() == PendingAccount.Status.PENDING).count();
             lblPendingBadge.setText(pending > 0 ? "  " + pending + " chờ duyệt  " : "");
         }
@@ -314,26 +318,66 @@ public class AccountManagementPanel extends JPanel {
         int row = table.getSelectedRow();
         if (row < 0) return null;
         String id = (String) tableModel.getValueAt(row, 0);
-        return DataStore.getPendingAccounts().stream()
+        return DatabaseService.getAllPendingAccounts().stream()
             .filter(a -> a.getId().equals(id)).findFirst().orElse(null);
     }
+private void approveSelected() {
+    PendingAccount a = getSelected();
 
-    private void approveSelected() {
-        PendingAccount a = getSelected();
-        if (a == null) { showToast("Vui lòng chọn một đơn đăng ký!", false); return; }
-        if (a.getStatus() != PendingAccount.Status.PENDING) {
-            showToast("Đơn này đã được xử lý rồi!", false); return;
-        }
-        int r = JOptionPane.showConfirmDialog(this,
+    if (a == null) {
+        showToast("Vui lòng chọn một đơn đăng ký!", false);
+        return;
+    }
+
+    if (a.getStatus() != PendingAccount.Status.PENDING) {
+        showToast("Đơn này đã được xử lý rồi!", false);
+        return;
+    }
+
+    int r = JOptionPane.showConfirmDialog(
+            this,
             "<html>Xác nhận <b>DUYỆT</b> tài khoản:<br>"
             + "Họ tên: <b>" + a.getFullName() + "</b><br>"
             + "Tên đăng nhập: <b>" + a.getUsername() + "</b></html>",
-            "Xác nhận duyệt", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-        if (r != JOptionPane.YES_OPTION) return;
-        a.setStatus(PendingAccount.Status.APPROVED);
-        refreshTable();
-        showToast("Đã duyệt tài khoản: " + a.getFullName(), true);
-    }
+            "Xác nhận duyệt",
+            JOptionPane.YES_NO_OPTION);
+
+    if (r != JOptionPane.YES_OPTION)
+        return;
+
+    // cập nhật trạng thái
+    a.setStatus(PendingAccount.Status.APPROVED);
+
+    DatabaseService.updatePendingAccountStatus(
+            a.getId(),
+            "Đã duyệt",
+            ""
+    );
+
+    // mật khẩu mặc định
+    String defaultPassword = "123456";
+
+    // hash SHA256
+    String passwordHash = sha256(defaultPassword);
+
+    // tạo user
+    DatabaseService.addUser(
+            a.getUsername(),
+            passwordHash,
+            "STUDENT",
+            a.getFullName(),
+            null
+    );
+
+    refreshTable();
+
+    showToast(
+            "Đã duyệt tài khoản: "
+            + a.getFullName()
+            + "\nMật khẩu mặc định: 123456",
+            true
+    );
+}
 
     private void rejectSelected() {
         PendingAccount a = getSelected();
@@ -348,6 +392,7 @@ public class AccountManagementPanel extends JPanel {
         if (reason == null) return;   // bấm Cancel
         a.setStatus(PendingAccount.Status.REJECTED);
         a.setNote(reason.trim());
+        DatabaseService.updatePendingAccountStatus(a.getId(), "Từ chối", reason.trim());
         refreshTable();
         showToast("Đã từ chối tài khoản: " + a.getFullName(), false);
     }
@@ -450,5 +495,22 @@ public class AccountManagementPanel extends JPanel {
         t.setLocation(sc.width - t.getWidth() - 24, sc.height - t.getHeight() - 52);
         t.setVisible(true);
         new Timer(3500, e -> t.dispose()) {{ setRepeats(false); start(); }};
+
+        
     }
+    private String sha256(String text) {
+    try {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        byte[] hash = md.digest(text.getBytes("UTF-8"));
+
+        StringBuilder sb = new StringBuilder();
+        for (byte b : hash) {
+            sb.append(String.format("%02x", b));
+        }
+
+        return sb.toString();
+    }  catch (Exception e) {
+        throw new RuntimeException(e);
+        }
+  }
 }

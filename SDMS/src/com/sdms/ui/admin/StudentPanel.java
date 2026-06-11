@@ -2,6 +2,7 @@ package com.sdms.ui.admin;
 
 import com.sdms.model.Student;
 import com.sdms.utils.DataStore;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
@@ -59,7 +60,7 @@ public class StudentPanel extends JPanel {
         left.add(title, BorderLayout.NORTH);
         left.add(breadcrumb, BorderLayout.SOUTH);
 
-        JLabel count = new JLabel("Tổng cộng: " + DataStore.totalStudents() + " sinh viên");
+        JLabel count = new JLabel("Tổng cộng: " + DatabaseService.getAllStudents().size() + " sinh viên");
         count.setFont(UITheme.FONT_SMALL); count.setForeground(UITheme.TEXT_SECONDARY);
 
         p.add(left, BorderLayout.WEST);
@@ -210,7 +211,7 @@ public class StudentPanel extends JPanel {
         tableModel = new DefaultTableModel(null, COLS) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
-        refreshTable(DataStore.getStudents());
+        refreshTable(DatabaseService.getAllStudents());
 
         table = new JTable(tableModel);
         table.setShowVerticalLines(false);
@@ -247,7 +248,7 @@ public class StudentPanel extends JPanel {
         tfSearch.addKeyListener(new KeyAdapter() {
             @Override public void keyReleased(KeyEvent e) {
                 String q = tfSearch.getText().toLowerCase();
-                List<Student> filtered = DataStore.getStudents().stream()
+                List<Student> filtered = DatabaseService.getAllStudents().stream()
                     .filter(s -> s.getId().toLowerCase().contains(q)
                               || s.getFullName().toLowerCase().contains(q)
                               || s.getRoomId().toLowerCase().contains(q)
@@ -259,7 +260,7 @@ public class StudentPanel extends JPanel {
 
         cbStatusFilter.addActionListener(e -> {
             String sel = (String)cbStatusFilter.getSelectedItem();
-            List<Student> filtered = DataStore.getStudents().stream()
+            List<Student> filtered = DatabaseService.getAllStudents().stream()
                 .filter(s -> "Tất cả trạng thái".equals(sel) || s.getStatus().equals(sel))
                 .collect(Collectors.toList());
             refreshTable(filtered);
@@ -282,8 +283,8 @@ public class StudentPanel extends JPanel {
     private JPanel buildPagingBar() {
         JPanel p = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 4));
         p.setOpaque(false);
-        JLabel info = new JLabel("Hiển thị 1–" + Math.min(10, DataStore.totalStudents())
-                + " / " + DataStore.totalStudents() + " kết quả");
+        JLabel info = new JLabel("Hiển thị 1–" + Math.min(10, DatabaseService.getAllStudents().size())
+                + " / " + DatabaseService.getAllStudents().size() + " kết quả");
         info.setFont(UITheme.FONT_SMALL); info.setForeground(UITheme.TEXT_SECONDARY);
         p.add(info);
         for (int i = 1; i <= 3; i++) {
@@ -307,7 +308,7 @@ public class StudentPanel extends JPanel {
 
     private void fillFormFromRow(int row) {
         String id = (String) tableModel.getValueAt(row, 0);
-        editingStudent = DataStore.getStudents().stream().filter(s -> s.getId().equals(id)).findFirst().orElse(null);
+        editingStudent = DatabaseService.getAllStudents().stream().filter(s -> s.getId().equals(id)).findFirst().orElse(null);
         if (editingStudent == null) return;
         tfId.setText(editingStudent.getId());
         tfName.setText(editingStudent.getFullName());
@@ -338,8 +339,8 @@ public class StudentPanel extends JPanel {
             tfClass.getText().trim(), tfAddress.getText().trim(),
             (String)cbRoom.getSelectedItem(), (String)cbStatus.getSelectedItem()
         );
-        DataStore.addStudent(s);
-        refreshTable(DataStore.getStudents());
+        DatabaseService.addStudent(s);
+        refreshTable(DatabaseService.getAllStudents());
         clearForm();
         JOptionPane.showMessageDialog(this,"✅ Thêm sinh viên thành công!","Thành công",JOptionPane.INFORMATION_MESSAGE);
     }
@@ -355,7 +356,7 @@ public class StudentPanel extends JPanel {
         editingStudent.setRoomId((String)cbRoom.getSelectedItem());
         editingStudent.setStatus((String)cbStatus.getSelectedItem());
         editingStudent.setUniversity((String)cbUniversity.getSelectedItem());
-        refreshTable(DataStore.getStudents());
+        refreshTable(DatabaseService.getAllStudents());
         JOptionPane.showMessageDialog(this,"✅ Cập nhật thành công!","Thành công",JOptionPane.INFORMATION_MESSAGE);
     }
 
@@ -363,9 +364,9 @@ public class StudentPanel extends JPanel {
         if (editingStudent == null) { JOptionPane.showMessageDialog(this,"⚠ Chọn sinh viên cần xóa!","Lưu ý",JOptionPane.WARNING_MESSAGE); return; }
         int r = JOptionPane.showConfirmDialog(this,"Xóa sinh viên "+editingStudent.getFullName()+"?","Xác nhận xóa",JOptionPane.YES_NO_OPTION,JOptionPane.WARNING_MESSAGE);
         if (r == JOptionPane.YES_OPTION) {
-            DataStore.removeStudent(editingStudent);
+            	DatabaseService.deleteStudent(editingStudent.getId());
             editingStudent = null;
-            refreshTable(DataStore.getStudents());
+            refreshTable(DatabaseService.getAllStudents());
             clearForm();
         }
     }

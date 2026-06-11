@@ -2,6 +2,7 @@ package com.sdms.ui.admin;
 
 import com.sdms.model.Room;
 import com.sdms.utils.DataStore;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
@@ -64,7 +65,7 @@ public class RoomPanel extends JPanel {
         cardGrid = new JPanel();
         cardGrid.setOpaque(false);
         cardGrid.setLayout(new BoxLayout(cardGrid, BoxLayout.Y_AXIS));
-        rebuildCards(DataStore.getRooms());
+        rebuildCards(	DatabaseService.getAllRooms());
 
         JScrollPane scroll = new JScrollPane(cardGrid);
         scroll.setBorder(null);
@@ -80,10 +81,10 @@ public class RoomPanel extends JPanel {
         row.setOpaque(false);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
 
-        long total   = DataStore.getRooms().size();
-        long empty   = DataStore.getRooms().stream().filter(r -> r.getStatus()==Room.Status.AVAILABLE).count();
-        long near    = DataStore.getRooms().stream().filter(r -> r.getStatus()==Room.Status.NEARLY_FULL).count();
-        long full    = DataStore.getRooms().stream().filter(r -> r.getStatus()==Room.Status.FULL).count();
+        long total   = DatabaseService.getAllRooms().size();
+        long empty   = DatabaseService.getAllRooms().stream().filter(r -> r.getStatus()==Room.Status.AVAILABLE).count();
+        long near    = DatabaseService.getAllRooms().stream().filter(r -> r.getStatus()==Room.Status.NEARLY_FULL).count();
+        long full    = DatabaseService.getAllRooms().stream().filter(r -> r.getStatus()==Room.Status.FULL).count();
 
         row.add(miniStat("Tổng số phòng", total, UITheme.PRIMARY));
         row.add(miniStat("Còn chỗ",       empty,  UITheme.SUCCESS));
@@ -191,7 +192,7 @@ public class RoomPanel extends JPanel {
     }
 
     private void applyFilter() {
-        List<Room> filtered = DataStore.getRooms().stream().filter(r -> switch(filterStatus) {
+        List<Room> filtered = DatabaseService.getAllRooms().stream().filter(r -> switch(filterStatus) {
             case "Còn chỗ"      -> r.getStatus() == Room.Status.AVAILABLE;
             case "Gần đầy"      -> r.getStatus() == Room.Status.NEARLY_FULL;
             case "Đã đầy"       -> r.getStatus() == Room.Status.FULL;

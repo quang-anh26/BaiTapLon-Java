@@ -2,6 +2,7 @@ package com.sdms.ui.admin;
 
 import com.sdms.model.Utility;
 import com.sdms.utils.DataStore;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
@@ -135,7 +136,7 @@ public class UtilityPanel extends JPanel {
         tfNote       = UITheme.textField("Ghi chú...");
 
         // Danh sách phòng
-        String[] roomIds = DataStore.getRooms().stream()
+        String[] roomIds = 	DatabaseService.getAllRooms().stream()
             .map(r -> r.getId()).toArray(String[]::new);
         cbRoom = UITheme.comboBox(roomIds);
 

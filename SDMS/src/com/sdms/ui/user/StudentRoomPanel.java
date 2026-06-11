@@ -4,6 +4,7 @@ import com.sdms.model.Room;
 import com.sdms.model.Student;
 import com.sdms.model.User;
 import com.sdms.utils.DataStore;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
@@ -40,14 +41,14 @@ public class StudentRoomPanel extends JPanel {
     private Student findStudent() {
         String sid = currentUser.getStudentId();
         if (sid == null) return null;
-        return DataStore.getStudents().stream()
+        return 	DatabaseService.getAllStudents().stream()
             .filter(s -> s.getId().equals(sid))
             .findFirst().orElse(null);
     }
 
     private Room findRoom() {
         if (student == null || student.getRoomId().isEmpty()) return null;
-        return DataStore.getRooms().stream()
+        return DatabaseService.getAllRooms().stream()
             .filter(r -> r.getId().equals(student.getRoomId()))
             .findFirst().orElse(null);
     }
@@ -204,7 +205,7 @@ public class StudentRoomPanel extends JPanel {
         title.setForeground(UITheme.TEXT_PRIMARY);
 
         // Tìm tất cả SV cùng phòng
-        List<Student> roommates = DataStore.getStudents().stream()
+        List<Student> roommates = 	DatabaseService.getAllStudents().stream()
             .filter(s -> room.getId().equals(s.getRoomId()))
             .collect(Collectors.toList());
 

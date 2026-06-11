@@ -1,11 +1,17 @@
 package com.sdms.ui.admin;
 
+import com.sdms.utils.DatabaseService;
+import com.sdms.utils.DataStore.PendingAccount;
+
 import javax.swing.*;
 import javax.swing.border.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
+import java.security.MessageDigest;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -727,8 +733,33 @@ private void showDatePicker() {
 
         if (!ok) return;
 
-        showToast("Đăng ký thành công! Tài khoản \"" + un + "\" đang chờ phê duyệt.", true);
-        clearForm();
+        // Sinh mã đơn và thời gian đăng ký
+        String newId = DatabaseService.nextPendingId();
+        String registeredAt = LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+        String gender = (String) cbGender.getSelectedItem();
+
+        PendingAccount pa = new PendingAccount(
+                newId, un, fn, ph, dob, cc, gender, registeredAt);
+
+        boolean saved = DatabaseService.addPendingAccount(pa);
+        if (saved) {
+            showToast("Đăng ký thành công! Tài khoản \"" + un + "\" đang chờ phê duyệt.", true);
+            clearForm();
+        } else {
+            showToast("Lỗi: Không thể lưu đơn đăng ký. Kiểm tra kết nối SQL Server.", false);
+        }
+    }
+
+    /** SHA-256 hash helper */
+    private String sha256(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(input.getBytes("UTF-8"));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (Exception e) { return ""; }
     }
 
     private void showToast(String msg, boolean success) {

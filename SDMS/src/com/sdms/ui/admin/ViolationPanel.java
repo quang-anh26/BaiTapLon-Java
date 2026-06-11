@@ -3,6 +3,7 @@ package com.sdms.ui.admin;
 import com.sdms.model.Student;
 import com.sdms.model.Violation;
 import com.sdms.utils.DataStore;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
@@ -161,7 +162,7 @@ public class ViolationPanel extends JPanel {
         tfNote        = UITheme.textField("Ghi chú...");
 
         // Comboboxes
-        String[] roomIds = DataStore.getRooms().stream()
+        String[] roomIds = 	DatabaseService.getAllRooms().stream()
             .map(r -> r.getId()).toArray(String[]::new);
         cbRoom     = UITheme.comboBox(roomIds);
         cbType     = UITheme.comboBox(Violation.VIOLATION_TYPES);
@@ -588,7 +589,7 @@ public class ViolationPanel extends JPanel {
 
     /** Tự động điền tên SV khi nhập mã */
     private void autoFillStudent(String svId) {
-        DataStore.getStudents().stream()
+        DatabaseService.getAllStudents().stream()
             .filter(s -> s.getId().equalsIgnoreCase(svId))
             .findFirst()
             .ifPresent(s -> {

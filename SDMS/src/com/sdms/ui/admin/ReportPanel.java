@@ -1,6 +1,7 @@
 package com.sdms.ui.admin;
 
 import com.sdms.utils.DataStore;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
@@ -83,9 +84,9 @@ public class ReportPanel extends JPanel {
         JPanel kpiRow = new JPanel(new GridLayout(1, 4, 14, 0));
         kpiRow.setOpaque(false);
 
-        int totalStudents = DataStore.getStudents().size();
-        int totalRooms    = DataStore.getRooms().size();
-        long occupiedRooms = DataStore.getRooms().stream()
+        int totalStudents = DatabaseService.getAllStudents().size();
+        int totalRooms    = 	DatabaseService.getAllRooms().size();
+        long occupiedRooms = 	DatabaseService.getAllRooms().stream()
             .filter(r -> r.getOccupied() > 0).count();
         double occupancyRate = totalRooms > 0
             ? (double) occupiedRooms / totalRooms * 100 : 0;
@@ -273,10 +274,10 @@ public class ReportPanel extends JPanel {
         JPanel kpiRow = new JPanel(new GridLayout(1, 4, 12, 0));
         kpiRow.setOpaque(false);
 
-        long totalRooms    = DataStore.getRooms().size();
-        long occupied      = DataStore.getRooms().stream().filter(r -> r.getOccupied() > 0).count();
+        long totalRooms    = 	DatabaseService.getAllRooms().size();
+        long occupied      = 	DatabaseService.getAllRooms().stream().filter(r -> r.getOccupied() > 0).count();
         long vacant        = totalRooms - occupied;
-        long totalStudents = DataStore.getStudents().size();
+        long totalStudents = DatabaseService.getAllStudents().size();
 
         kpiRow.add(smallKpi("🏠 Tổng phòng",          String.valueOf(totalRooms),    UITheme.PRIMARY));
         kpiRow.add(smallKpi("✅ Phòng đang ở",          String.valueOf(occupied),      UITheme.SUCCESS_TEXT));
@@ -325,7 +326,7 @@ public class ReportPanel extends JPanel {
     }
 
     private Object[][] buildRoomRows() {
-        return DataStore.getRooms().stream().map(r -> {
+        return 	DatabaseService.getAllRooms().stream().map(r -> {
             int cap    = r.getCapacity();
             int curr   = r.getOccupied();
             int vacant = cap - curr;

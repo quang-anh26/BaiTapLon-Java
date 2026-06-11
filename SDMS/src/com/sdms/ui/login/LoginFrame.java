@@ -1,5 +1,8 @@
 package com.sdms.ui.login;
 
+import com.sdms.utils.DatabaseService;
+import java.security.MessageDigest;
+
 import com.sdms.model.User;
 import com.sdms.ui.admin.AdminFrame;
 import com.sdms.ui.user.UserFrame;
@@ -350,21 +353,42 @@ public class LoginFrame extends JFrame {
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return btn;
     }
+    private String sha256(String input) {
+    try {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        byte[] hash = md.digest(input.getBytes("UTF-8"));
+
+        StringBuilder sb = new StringBuilder();
+        for (byte b : hash) {
+            sb.append(String.format("%02x", b));
+        }
+
+        return sb.toString();
+    } catch (Exception e) {
+        return "";
+    }
+}
 
     private void doLogin() {
-        String u = tfUser.getText().trim();
-        String p = new String(pfPass.getPassword());
+       String u = tfUser.getText().trim();
+       String p = sha256(new String(pfPass.getPassword()).trim());
 
         if (u.isEmpty() || p.isEmpty()) {
             lblError.setText("⚠ Vui lòng nhập đầy đủ thông tin đăng nhập.");
             return;
         }
 
-        User user = User.authenticate(u, p);
-        if (user == null) {
-            lblError.setText("✗ Sai tên đăng nhập hoặc mật khẩu. Thử lại.");
-            return;
-        }
+        User user = DatabaseService.getUserByUsername(u);
+        System.out.println("Username: " + u);
+        System.out.println("User object: " + user);
+        if (user != null) {
+        System.out.println("DB Password: " + user.getPassword());
+        System.out.println("Input Password: " + p);
+}
+        if (user == null || !user.getPassword().equals(p)) {
+         lblError.setText("✗ Sai tên đăng nhập hoặc mật khẩu. Thử lại.");
+         return;
+}
 
         // Kiểm tra role đã chọn có khớp với role của user không
         boolean isAdminSelected = btnAdmin.isSelected();

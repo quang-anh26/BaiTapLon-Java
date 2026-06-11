@@ -1,6 +1,7 @@
 package com.sdms.ui.user;
 
 import com.sdms.model.User;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
@@ -253,9 +254,11 @@ public class ChangePasswordPanel extends JPanel {
         if (current.length == 0) {
             showWarn("Vui lòng nhập mật khẩu hiện tại!"); return;
         }
-        if (!new String(current).equals(currentUser.getPassword())) {
-            showWarn("Mật khẩu hiện tại không đúng!"); return;
-        }
+        String currentHash = sha256(new String(current));
+           if (!currentHash.equals(currentUser.getPassword())) {
+           showWarn("Mật khẩu hiện tại không đúng!");
+            return;
+           }
         // Validate mật khẩu mới
         if (newPwd.length < 6) {
             showWarn("Mật khẩu mới phải có ít nhất 6 ký tự!"); return;
@@ -268,12 +271,26 @@ public class ChangePasswordPanel extends JPanel {
             showWarn("Mật khẩu xác nhận không khớp!"); return;
         }
 
-        // Thành công
+       
+         String newHash = sha256(new String(newPwd));
+
+         boolean ok = DatabaseService.updatePassword(
+           currentUser.getUsername(),
+         newHash
+        );
+
+       if (!ok) {
+         showWarn("Đổi mật khẩu thất bại!");
+          return;
+        }
+
         resetFields();
+
         JOptionPane.showMessageDialog(this,
-            "<html>✅ <b>Đổi mật khẩu thành công!</b><br>"
-            + "Vui lòng đăng nhập lại bằng mật khẩu mới khi cần.</html>",
-            "Thành công", JOptionPane.INFORMATION_MESSAGE);
+     "<html>✅ <b>Đổi mật khẩu thành công!</b><br>"
+     + "Vui lòng đăng nhập lại bằng mật khẩu mới khi cần.</html>",
+      "Thành công",
+           JOptionPane.INFORMATION_MESSAGE);
     }
 
     /** Xóa trắng tất cả fields */
@@ -330,4 +347,22 @@ public class ChangePasswordPanel extends JPanel {
         JOptionPane.showMessageDialog(this, "⚠ " + msg,
             "Lưu ý", JOptionPane.WARNING_MESSAGE);
     }
+    private String sha256(String input) {
+    try {
+        java.security.MessageDigest md =
+                java.security.MessageDigest.getInstance("SHA-256");
+
+        byte[] hash = md.digest(input.getBytes("UTF-8"));
+
+        StringBuilder sb = new StringBuilder();
+        for (byte b : hash) {
+            sb.append(String.format("%02x", b));
+        }
+
+        return sb.toString();
+      } catch (Exception e) {
+        return "";
+       }
+    }
+
 }

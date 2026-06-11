@@ -119,7 +119,7 @@ public class AdminFrame extends JFrame {
 
         // Logout
         JPanel logoutBtn = buildMenuItem(new String[]{"Đăng xuất","logout"});
-        logoutBtn.setBounds(0, 700, UITheme.SIDEBAR_WIDTH, 40);
+        logoutBtn.setBounds(0, 620, UITheme.SIDEBAR_WIDTH, 40);
 
         sidebar.add(logoArea);
         sidebar.add(sep);

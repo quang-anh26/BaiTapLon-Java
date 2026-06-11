@@ -2,6 +2,7 @@ package com.sdms.ui.admin;
 
 import com.sdms.model.Invoice;
 import com.sdms.utils.DataStore;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
@@ -45,9 +46,9 @@ public class PaymentPanel extends JPanel {
         cards.setOpaque(false);
         cards.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
 
-        long totalRev = DataStore.getInvoices().stream().filter(Invoice::isPaid).mapToLong(Invoice::getTotal).sum();
-        long pending  = DataStore.getInvoices().stream().filter(i -> !i.isPaid()).mapToLong(Invoice::getTotal).sum();
-        long count    = DataStore.getInvoices().stream().filter(i -> !i.isPaid()).count();
+        long totalRev = DatabaseService.getAllInvoices().stream().filter(Invoice::isPaid).mapToLong(Invoice::getTotal).sum();
+        long pending  = DatabaseService.getAllInvoices().stream().filter(i -> !i.isPaid()).mapToLong(Invoice::getTotal).sum();
+        long count    = DatabaseService.getAllInvoices().stream().filter(i -> !i.isPaid()).count();
 
         cards.add(summaryCard("💰", "Đã thu tháng này",    String.format("%,d đ", totalRev), UITheme.SUCCESS));
         cards.add(summaryCard("⏳", "Chưa thanh toán",     String.format("%,d đ", pending),  UITheme.WARNING));
@@ -97,7 +98,7 @@ public class PaymentPanel extends JPanel {
                 if (e.getClickCount() == 2) {
                     int row = table.getSelectedRow();
                     String id = (String) model.getValueAt(row, 0);
-                    Invoice inv = DataStore.getInvoices().stream().filter(i -> i.getId().equals(id)).findFirst().orElse(null);
+                    Invoice inv = DatabaseService.getAllInvoices().stream().filter(i -> i.getId().equals(id)).findFirst().orElse(null);
                     if (inv != null && !inv.isPaid()) {
                         int r = JOptionPane.showConfirmDialog(PaymentPanel.this,
                             "<html>Xác nhận thanh toán hóa đơn <b>"+id+"</b>?<br>Tổng tiền: <b>"+String.format("%,d đ", inv.getTotal())+"</b></html>",
@@ -150,6 +151,6 @@ public class PaymentPanel extends JPanel {
 
     private void refreshTable() {
         model.setRowCount(0);
-        for (Invoice inv : DataStore.getInvoices()) model.addRow(inv.toRow());
+        for (Invoice inv : DatabaseService.getAllInvoices()) model.addRow(inv.toRow());
     }
 }

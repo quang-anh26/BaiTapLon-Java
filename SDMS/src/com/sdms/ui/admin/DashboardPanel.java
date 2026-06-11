@@ -2,6 +2,7 @@ package com.sdms.ui.admin;
 
 import com.sdms.model.Student;
 import com.sdms.utils.DataStore;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
@@ -46,11 +47,11 @@ public class DashboardPanel extends JPanel {
         cardsRow.setOpaque(false);
         cardsRow.setAlignmentX(LEFT_ALIGNMENT);
         cardsRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
-        cardsRow.add(statCard("👥", "Tổng sinh viên",     String.valueOf(DataStore.totalStudents()),    "↑ +10 tháng này",  new Color(0xDBEAFE), UITheme.PRIMARY,  UITheme.SUCCESS));
-        cardsRow.add(statCard("🚪", "Tổng số phòng",       String.valueOf(DataStore.totalRooms()),       "4 tầng · 1 tòa",    new Color(0xDCFCE7), UITheme.SUCCESS, UITheme.TEXT_MUTED));
-        cardsRow.add(statCard("🟡", "Phòng còn trống",     String.valueOf(DataStore.emptyRooms()),       "↓ -2 tuần này",     new Color(0xFEF9C3), UITheme.WARNING, UITheme.DANGER));
-        cardsRow.add(statCard("📄", "HĐ đang hoạt động",  String.valueOf(DataStore.activeStudents()),   "↑ 95% tỷ lệ",       new Color(0xEDE9FE), UITheme.PURPLE,  UITheme.SUCCESS));
-        cardsRow.add(statCard("💰", "Doanh thu tháng",    String.format("%,d đ",DataStore.monthRevenue()),"↑ +8% tháng trước",new Color(0xFCE7F3), new Color(0xBE185D), UITheme.SUCCESS));
+        cardsRow.add(statCard("👥", "Tổng sinh viên",     String.valueOf(DatabaseService.getAllStudents().size()),    "↑ +10 tháng này",  new Color(0xDBEAFE), UITheme.PRIMARY,  UITheme.SUCCESS));
+        cardsRow.add(statCard("🚪", "Tổng số phòng",       String.valueOf(DatabaseService.totalRooms()),       "4 tầng · 1 tòa",    new Color(0xDCFCE7), UITheme.SUCCESS, UITheme.TEXT_MUTED));
+        cardsRow.add(statCard("🟡", "Phòng còn trống",     String.valueOf(DatabaseService.emptyRooms()),       "↓ -2 tuần này",     new Color(0xFEF9C3), UITheme.WARNING, UITheme.DANGER));
+        cardsRow.add(statCard("📄", "HĐ đang hoạt động",  String.valueOf(DatabaseService.countStudentsByStatus("Đang ở")),   "↑ 95% tỷ lệ",       new Color(0xEDE9FE), UITheme.PURPLE,  UITheme.SUCCESS));
+        cardsRow.add(statCard("💰", "Doanh thu tháng",    String.format("%,d đ",DatabaseService.monthRevenue("06/2026")),"↑ +8% tháng trước",new Color(0xFCE7F3), new Color(0xBE185D), UITheme.SUCCESS));
 
         // Row 2: bar chart + room status
         JPanel row2 = new JPanel(new GridLayout(1, 2, 14, 0));
@@ -237,7 +238,7 @@ public class DashboardPanel extends JPanel {
         card.add(titleRow, BorderLayout.NORTH);
 
         String[] cols = {"Mã SV","Họ tên","Phòng","Trường","Trạng thái"};
-        Object[][] rowData = DataStore.getStudents().stream()
+        Object[][] rowData = DatabaseService.getAllStudents().stream()
             .limit(5)
             .map(s -> new Object[]{s.getId(), s.getFullName(),
                 s.getRoomId().isEmpty()?"—":s.getRoomId(), s.getUniversity(), s.getStatus()})

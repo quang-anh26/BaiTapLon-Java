@@ -3,6 +3,7 @@ package com.sdms.ui.admin;
 import com.sdms.model.Contract;
 import com.sdms.model.Student;
 import com.sdms.utils.DataStore;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
@@ -142,7 +143,7 @@ public class ContractPanel extends JPanel {
         tfNote        = UITheme.textField("Ghi chú thêm...");
 
         // Lấy danh sách phòng từ DataStore
-        String[] roomIds = DataStore.getRooms().stream()
+        String[] roomIds = DatabaseService.getAllRooms().stream()
             .map(r -> r.getId()).toArray(String[]::new);
         cbRoom   = UITheme.comboBox(roomIds);
         cbStatus = UITheme.comboBox(STATUSES);
@@ -536,7 +537,7 @@ public class ContractPanel extends JPanel {
 
     /** Tự điền tên sinh viên khi nhập mã SV */
     private void autoFillStudentName(String svId) {
-        DataStore.getStudents().stream()
+        DatabaseService.getAllStudents().stream()
             .filter(s -> s.getId().equalsIgnoreCase(svId))
             .findFirst()
             .ifPresent(s -> {

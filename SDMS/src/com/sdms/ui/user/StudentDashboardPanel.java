@@ -2,6 +2,7 @@ package com.sdms.ui.user;
 
 import com.sdms.model.*;
 import com.sdms.utils.DataStore;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
@@ -46,7 +47,7 @@ public class StudentDashboardPanel extends JPanel {
     private Student findStudent() {
         String sid = currentUser.getStudentId();
         if (sid == null) return null;
-        return DataStore.getStudents().stream()
+        return DatabaseService.getAllStudents().stream()
             .filter(s -> s.getId().equals(sid))
             .findFirst().orElse(null);
     }
@@ -54,7 +55,7 @@ public class StudentDashboardPanel extends JPanel {
     // ── Tìm phòng của sinh viên ───────────────────────────────────
     private Room findRoom() {
         if (student == null || student.getRoomId().isEmpty()) return null;
-        return DataStore.getRooms().stream()
+        return DatabaseService.getAllRooms().stream()
             .filter(r -> r.getId().equals(student.getRoomId()))
             .findFirst().orElse(null);
     }
@@ -62,7 +63,7 @@ public class StudentDashboardPanel extends JPanel {
     // ── Tìm hóa đơn mới nhất của sinh viên ───────────────────────
     private Invoice findLatestInvoice() {
         if (student == null) return null;
-        List<Invoice> invoices = DataStore.getInvoices();
+        List<Invoice> invoices = DatabaseService.getAllInvoices();
         return invoices.stream()
             .filter(i -> i.getStudentId().equals(student.getId()))
             .reduce((a, b) -> b) // lấy cuối cùng
