@@ -40,9 +40,15 @@ public class StudentRoomPanel extends JPanel {
 
     private Student findStudent() {
         String sid = currentUser.getStudentId();
-        if (sid == null) return null;
-        return 	DatabaseService.getAllStudents().stream()
-            .filter(s -> s.getId().equals(sid))
+        if (sid != null && !sid.isEmpty()) {
+            Student s = DatabaseService.getAllStudents().stream()
+                .filter(st -> st.getId().equals(sid))
+                .findFirst().orElse(null);
+            if (s != null) return s;
+        }
+        // Fallback: tìm theo username khớp id (một số hệ thống dùng username == studentId)
+        return DatabaseService.getAllStudents().stream()
+            .filter(st -> st.getId().equalsIgnoreCase(currentUser.getUsername()))
             .findFirst().orElse(null);
     }
 

@@ -7,6 +7,7 @@ import com.sdms.utils.UITheme;
 import javax.swing.*;
 import javax.swing.border.*;
 import java.awt.*;
+import java.awt.Insets;
 import java.util.Arrays;
 
 /**
@@ -58,13 +59,19 @@ public class ChangePasswordPanel extends JPanel {
 
     // ── Nội dung ──────────────────────────────────────────────────
     private JPanel buildContent() {
-        // Căn giữa card
+        // Dùng JScrollPane để cuộn được nếu cửa sổ nhỏ
         JPanel outer = new JPanel(new GridBagLayout());
         outer.setBackground(UITheme.BG_LIGHT);
 
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(24, 0, 24, 0);
+        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.fill   = GridBagConstraints.NONE;
+
         JPanel card = buildCard();
-        card.setPreferredSize(new Dimension(460, 520));
-        outer.add(card);
+        // Card chiều rộng cố định 480px, chiều cao co giãn theo nội dung
+        card.setPreferredSize(new Dimension(480, card.getPreferredSize().height));
+        outer.add(card, gbc);
         return outer;
     }
 
@@ -95,7 +102,7 @@ public class ChangePasswordPanel extends JPanel {
 
         // ── Mật khẩu hiện tại ────────────────────────────────────
         pfCurrent = passwordField();
-        JPanel rowCurrent = fieldRow("🔑  Mật khẩu hiện tại *", pfCurrent);
+        JPanel rowCurrent = fieldRow("MẬT KHẨU HIỆN TẠI *", pfCurrent);
 
         // ── Mật khẩu mới ─────────────────────────────────────────
         pfNew = passwordField();
@@ -104,14 +111,14 @@ public class ChangePasswordPanel extends JPanel {
             public void removeUpdate(javax.swing.event.DocumentEvent e)  { updateStrength(); }
             public void changedUpdate(javax.swing.event.DocumentEvent e) { updateStrength(); }
         });
-        JPanel rowNew = fieldRow("🆕  Mật khẩu mới *", pfNew);
+        JPanel rowNew = fieldRow("MẬT KHẨU MỚI *", pfNew);
 
         // Thanh độ mạnh
         JPanel strengthRow = buildStrengthRow();
 
         // ── Xác nhận mật khẩu mới ────────────────────────────────
         pfConfirm = passwordField();
-        JPanel rowConfirm = fieldRow("✅  Xác nhận mật khẩu mới *", pfConfirm);
+        JPanel rowConfirm = fieldRow("XÁC NHẬN MẬT KHẨU MỚI *", pfConfirm);
 
         // ── Checkbox hiện mật khẩu ───────────────────────────────
         chkShow = new JCheckBox("Hiện mật khẩu");

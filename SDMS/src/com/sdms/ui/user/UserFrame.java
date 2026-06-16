@@ -203,7 +203,13 @@ public class UserFrame extends JFrame {
         main.add(buildTopHeader(), BorderLayout.NORTH);
         contentArea = new JPanel(new BorderLayout());
         contentArea.setBackground(UITheme.BG_LIGHT);
-        contentArea.add(new StudentDashboardPanel(currentUser), BorderLayout.CENTER);
+        StudentDashboardPanel dashboard = new StudentDashboardPanel(currentUser);
+        dashboard.setOnViewAllNotifications(() -> {
+            activeMenu = "Thông báo";
+            switchPanel("Thông báo");
+            rebuildSidebar();
+        });
+        contentArea.add(dashboard, BorderLayout.CENTER);
         main.add(contentArea, BorderLayout.CENTER);
         return main;
     }
@@ -445,7 +451,15 @@ public class UserFrame extends JFrame {
     private void switchPanel(String name) {
         contentArea.removeAll();
         JPanel p = switch(name) {
-            case "Trang chủ"           -> new StudentDashboardPanel(currentUser);
+            case "Trang chủ"           -> {
+                StudentDashboardPanel dash = new StudentDashboardPanel(currentUser);
+                dash.setOnViewAllNotifications(() -> {
+                    activeMenu = "Thông báo";
+                    switchPanel("Thông báo");
+                    rebuildSidebar();
+                });
+                yield dash;
+            }
             case "Thông tin cá nhân"   -> new StudentProfilePanel(currentUser);
             case "Thông tin phòng"     -> new StudentRoomPanel(currentUser);
             case "Hóa đơn"             -> new StudentInvoicePanel(currentUser);

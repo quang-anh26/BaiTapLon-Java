@@ -40,18 +40,28 @@ public class StudentInvoicePanel extends JPanel {
 
     private Student findStudent() {
         String sid = currentUser.getStudentId();
-        if (sid == null) return null;
-        return 	DatabaseService.getAllStudents().stream()
-            .filter(s -> s.getId().equals(sid))
+        if (sid != null && !sid.isEmpty()) {
+            Student s = DatabaseService.getAllStudents().stream()
+                .filter(st -> st.getId().equals(sid))
+                .findFirst().orElse(null);
+            if (s != null) return s;
+        }
+        // Fallback: username == studentId
+        return DatabaseService.getAllStudents().stream()
+            .filter(st -> st.getId().equalsIgnoreCase(currentUser.getUsername()))
             .findFirst().orElse(null);
     }
 
     private Invoice findCurrentInvoice() {
         if (student == null) return null;
-        // Lấy hóa đơn mới nhất (chưa thanh toán ưu tiên)
-        List<Invoice> list = DatabaseService.getAllInvoices().stream()
-            .filter(i -> i.getStudentId().equals(student.getId()))
-            .collect(Collectors.toList());
+        // Ưu tiên dùng getInvoicesByStudent để đúng student_id trong DB
+        List<Invoice> list = DatabaseService.getInvoicesByStudent(student.getId());
+        if (list.isEmpty()) {
+            // Fallback: tìm theo getAllInvoices (phòng hợp nếu student_id map khác)
+            list = DatabaseService.getAllInvoices().stream()
+                .filter(i -> i.getStudentId().equals(student.getId()))
+                .collect(Collectors.toList());
+        }
         // Ưu tiên hóa đơn chưa trả
         return list.stream().filter(i -> !i.isPaid()).findFirst()
             .orElse(list.isEmpty() ? null : list.get(list.size() - 1));

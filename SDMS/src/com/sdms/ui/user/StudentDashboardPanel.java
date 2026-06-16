@@ -24,6 +24,9 @@ public class StudentDashboardPanel extends JPanel {
     private final Room    room;       // Phòng đang ở
     private final Invoice latestInvoice; // Hóa đơn mới nhất
 
+    /** Callback để điều hướng sang trang Thông báo khi bấm "Xem tất cả" */
+    private Runnable onViewAllNotifications;
+
     private static final DateTimeFormatter DATE_FMT =
         DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -41,6 +44,11 @@ public class StudentDashboardPanel extends JPanel {
         scroll.getVerticalScrollBar().setUnitIncrement(14);
         scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         add(scroll, BorderLayout.CENTER);
+    }
+
+    /** Đặt callback khi sinh viên bấm "Xem tất cả thông báo" */
+    public void setOnViewAllNotifications(Runnable callback) {
+        this.onViewAllNotifications = callback;
     }
 
     // ── Tìm thông tin sinh viên từ DataStore ─────────────────────
@@ -360,6 +368,9 @@ public class StudentDashboardPanel extends JPanel {
 
         JButton btnAll = UITheme.outlineBtn("Xem tất cả thông báo →");
         btnAll.setAlignmentX(LEFT_ALIGNMENT);
+        btnAll.addActionListener(e -> {
+            if (onViewAllNotifications != null) onViewAllNotifications.run();
+        });
 
         card.add(title,     BorderLayout.NORTH);
         card.add(listPanel, BorderLayout.CENTER);
