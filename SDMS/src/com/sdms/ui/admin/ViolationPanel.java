@@ -16,6 +16,7 @@ import javax.swing.table.*;
 /**
  * Panel quản lý vi phạm nội quy ký túc xá.
  * Hỗ trợ: Thêm, Sửa, Xóa, Tìm kiếm, Lọc theo mức độ/trạng thái, Xử lý vi phạm.
+ * Dữ liệu được tải trực tiếp từ SQL Server qua DatabaseService.
  */
 public class ViolationPanel extends JPanel {
 
@@ -47,7 +48,7 @@ public class ViolationPanel extends JPanel {
     public ViolationPanel() {
         setBackground(UITheme.BG_LIGHT);
         setLayout(new BorderLayout());
-        initSampleData();
+        loadDataFromDatabase();          // ← tải từ SQL Server thay vì dữ liệu ảo
         add(buildHeader(), BorderLayout.NORTH);
 
         // Fixed layout — form width locked, not draggable
@@ -62,43 +63,18 @@ public class ViolationPanel extends JPanel {
         add(center, BorderLayout.CENTER);
     }
 
-    // ── Tạo dữ liệu mẫu ──────────────────────────────────────────
-    private void initSampleData() {
-        violations.add(new Violation("VP0001","SV001248","Nguyễn Văn An",  "A301",
-            LocalDate.of(2026,5,10), "Gây tiếng ồn",
-            "Mở nhạc to sau 23h, ảnh hưởng các phòng xung quanh.",
-            Violation.Severity.LOW, 0, "Admin", Violation.Status.PROCESSED, "Đã nhắc nhở"));
-
-        violations.add(new Violation("VP0002","SV001247","Trần Thị Bình",  "B204",
-            LocalDate.of(2026,5,18), "Mang khách lạ vào khu nội trú",
-            "Mang bạn trai không đăng ký vào phòng sau 22h.",
-            Violation.Severity.MEDIUM, 200_000, "Admin", Violation.Status.PROCESSED, ""));
-
-        violations.add(new Violation("VP0003","SV001242","Đặng Minh Tuấn", "B102",
-            LocalDate.of(2026,6,1), "Hút thuốc trong phòng",
-            "Hút thuốc lá trong phòng ngủ, vi phạm nội quy phòng cháy chữa cháy.",
-            Violation.Severity.HIGH, 500_000, "Admin", Violation.Status.PENDING, ""));
-
-        violations.add(new Violation("VP0004","SV001243","Vũ Thị Lan",     "A204",
-            LocalDate.of(2026,6,3), "Vi phạm giờ giấc",
-            "Về ký túc xá sau 00h mà không xin phép.",
-            Violation.Severity.LOW, 0, "", Violation.Status.PENDING, ""));
-
-        violations.add(new Violation("VP0005","SV001249","Nguyễn Thị Lan Anh","A301",
-            LocalDate.of(2026,6,5), "Sử dụng thiết bị điện công suất lớn",
-            "Dùng bếp điện trong phòng, vi phạm nội quy an toàn điện.",
-            Violation.Severity.MEDIUM, 300_000, "Admin", Violation.Status.APPEALING,
-            "Sinh viên đang khiếu nại"));
-
-        violations.add(new Violation("VP0006","SV001241","Bùi Thị Mai",    "C305",
-            LocalDate.of(2026,4,20), "Vi phạm vệ sinh chung",
-            "Không vệ sinh khu vực chung theo lịch phân công.",
-            Violation.Severity.LOW, 0, "Admin", Violation.Status.PROCESSED, ""));
-
-        violations.add(new Violation("VP0007","SV001240","Ngô Quốc Hùng",  "D201",
-            LocalDate.of(2026,5,28), "Phá hỏng tài sản",
-            "Làm gãy khóa cửa phòng, cần bồi thường.",
-            Violation.Severity.HIGH, 800_000, "Admin", Violation.Status.PENDING, ""));
+    // ── Tải dữ liệu từ SQL Server ─────────────────────────────────
+    private void loadDataFromDatabase() {
+        violations.clear();
+        try {
+            List<Violation> dbList = DatabaseService.getAllViolations();
+            violations.addAll(dbList);
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                "⚠ Không thể tải danh sách vi phạm từ cơ sở dữ liệu!\n" + e.getMessage(),
+                "Lỗi kết nối", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     // ── Header ────────────────────────────────────────────────────
@@ -164,7 +140,7 @@ public class ViolationPanel extends JPanel {
         tfNote        = UITheme.textField("");
 
         // Comboboxes
-        String[] roomIds = 	DatabaseService.getAllRooms().stream()
+        String[] roomIds = DatabaseService.getAllRooms().stream()
             .map(r -> r.getId()).toArray(String[]::new);
         cbRoom     = UITheme.comboBox(roomIds);
         cbType     = UITheme.comboBox(Violation.VIOLATION_TYPES);
@@ -195,10 +171,10 @@ public class ViolationPanel extends JPanel {
 
         cbSeverity.addActionListener(e -> suggestFine());
 
-        tfId.setText(nextViolationId());
+        tfId.setText(DatabaseService.nextViolationId());  // lấy ID tiếp theo từ DB
         tfDate.setText(LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
 
-        // ── Rows khớp với ảnh ─────────────────────────────────────
+        // ── Rows ─────────────────────────────────────────────────
         JPanel row1 = makeRow2(makeFieldPanel("MÃ VI PHẠM",     tfId),
                                makeFieldPanel("NGÀY VI PHẠM *", tfDate));
         JPanel row2 = makeRow2(makeFieldPanel("MÃ SINH VIÊN *", tfStudentId),
@@ -324,7 +300,7 @@ public class ViolationPanel extends JPanel {
         for (int i = 0; i < widths.length; i++)
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
 
-        // Renderers màu cho các cột quan trọng
+        // Renderers màu
         table.getColumnModel().getColumn(0).setCellRenderer(idRenderer());
         table.getColumnModel().getColumn(6).setCellRenderer(severityRenderer());
         table.getColumnModel().getColumn(7).setCellRenderer(fineRenderer());
@@ -365,6 +341,7 @@ public class ViolationPanel extends JPanel {
             tfSearch.setText("");
             cbSevFilter.setSelectedIndex(0);
             cbStatusFilter.setSelectedIndex(0);
+            loadDataFromDatabase();     // ← tải lại từ DB
             refreshTable(violations);
         });
 
@@ -407,7 +384,7 @@ public class ViolationPanel extends JPanel {
 
     // ── Logic CRUD ────────────────────────────────────────────────
 
-    /** Thêm vi phạm mới */
+    /** Thêm vi phạm mới vào DB */
     private void addViolation() {
         if (tfStudentId.getText().trim().isEmpty()) {
             showWarn("Vui lòng nhập mã sinh viên!"); return;
@@ -434,13 +411,19 @@ public class ViolationPanel extends JPanel {
             statusFromText((String) cbStatus.getSelectedItem()),
             tfNote.getText().trim()
         );
-        violations.add(v);
-        refreshTable(violations);
-        clearForm();
-        showSuccess("Ghi nhận vi phạm thành công!");
+
+        boolean ok = DatabaseService.addViolation(v);
+        if (ok) {
+            loadDataFromDatabase();
+            refreshTable(violations);
+            clearForm();
+            showSuccess("Ghi nhận vi phạm thành công!");
+        } else {
+            showWarn("Không thể lưu vi phạm vào cơ sở dữ liệu!");
+        }
     }
 
-    /** Cập nhật vi phạm đang chọn */
+    /** Cập nhật vi phạm đang chọn vào DB */
     private void editViolation() {
         if (editingViolation == null) {
             showWarn("Chọn vi phạm cần sửa từ bảng!"); return;
@@ -460,11 +443,17 @@ public class ViolationPanel extends JPanel {
         editingViolation.setStatus(statusFromText((String) cbStatus.getSelectedItem()));
         editingViolation.setNote(tfNote.getText().trim());
 
-        refreshTable(violations);
-        showSuccess("Cập nhật vi phạm thành công!");
+        boolean ok = DatabaseService.updateViolation(editingViolation);
+        if (ok) {
+            loadDataFromDatabase();
+            refreshTable(violations);
+            showSuccess("Cập nhật vi phạm thành công!");
+        } else {
+            showWarn("Không thể cập nhật vi phạm trong cơ sở dữ liệu!");
+        }
     }
 
-    /** Xóa vi phạm đang chọn */
+    /** Xóa vi phạm đang chọn khỏi DB */
     private void deleteViolation() {
         if (editingViolation == null) {
             showWarn("Chọn vi phạm cần xóa!"); return;
@@ -474,14 +463,19 @@ public class ViolationPanel extends JPanel {
             + " của " + editingViolation.getStudentName() + "?",
             "Xác nhận xóa", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (r == JOptionPane.YES_OPTION) {
-            violations.remove(editingViolation);
-            editingViolation = null;
-            refreshTable(violations);
-            clearForm();
+            boolean ok = DatabaseService.deleteViolation(editingViolation.getId());
+            if (ok) {
+                editingViolation = null;
+                loadDataFromDatabase();
+                refreshTable(violations);
+                clearForm();
+            } else {
+                showWarn("Không thể xóa vi phạm trong cơ sở dữ liệu!");
+            }
         }
     }
 
-    /** Đánh dấu vi phạm đã được xử lý */
+    /** Đánh dấu vi phạm đã được xử lý và lưu vào DB */
     private void processViolation() {
         if (editingViolation == null) {
             showWarn("Chọn vi phạm cần đánh dấu xử lý!"); return;
@@ -499,12 +493,18 @@ public class ViolationPanel extends JPanel {
         if (r == JOptionPane.YES_OPTION) {
             editingViolation.setStatus(Violation.Status.PROCESSED);
             editingViolation.setHandledBy(handler);
-            refreshTable(violations);
-            showSuccess("Đã cập nhật trạng thái xử lý!");
+            boolean ok = DatabaseService.updateViolation(editingViolation);
+            if (ok) {
+                loadDataFromDatabase();
+                refreshTable(violations);
+                showSuccess("Đã cập nhật trạng thái xử lý!");
+            } else {
+                showWarn("Không thể cập nhật trạng thái trong cơ sở dữ liệu!");
+            }
         }
     }
 
-    /** Lọc bảng */
+    /** Lọc bảng (lọc trên danh sách đã tải từ DB) */
     private void filterTable(String sevFilter, String statusFilter, String keyword) {
         String q = keyword.toLowerCase().trim();
         List<Violation> filtered = violations.stream()
@@ -563,7 +563,7 @@ public class ViolationPanel extends JPanel {
     /** Xóa trắng form */
     private void clearForm() {
         editingViolation = null;
-        tfId.setText(nextViolationId());
+        tfId.setText(DatabaseService.nextViolationId());  // lấy ID tiếp theo từ DB
         tfStudentId.setText(""); tfStudentName.setText("");
         tfDate.setText(LocalDate.now().format(
             java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
@@ -575,7 +575,7 @@ public class ViolationPanel extends JPanel {
         cbStatus.setSelectedIndex(0);
     }
 
-    /** Tự động điền tên SV khi nhập mã */
+    /** Tự động điền tên SV khi nhập mã — tra cứu từ DB */
     private void autoFillStudent(String svId) {
         DatabaseService.getAllStudents().stream()
             .filter(s -> s.getId().equalsIgnoreCase(svId))
@@ -606,11 +606,6 @@ public class ViolationPanel extends JPanel {
     }
 
     // ── Tiện ích ─────────────────────────────────────────────────
-
-    private String nextViolationId() {
-        if (violations.isEmpty()) return "VP0001";
-        return Violation.nextId(violations.get(violations.size() - 1).getId());
-    }
 
     private long parseFine(String s) {
         try { return Long.parseLong(s.replaceAll("[^0-9]", "")); }
@@ -658,7 +653,6 @@ public class ViolationPanel extends JPanel {
         row.add(makeFieldPanel(label, field), BorderLayout.CENTER);
         return row;
     }
-
 
     private void showWarn(String msg) {
         JOptionPane.showMessageDialog(this, "⚠ " + msg, "Lưu ý", JOptionPane.WARNING_MESSAGE);
