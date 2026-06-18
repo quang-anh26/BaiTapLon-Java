@@ -1,6 +1,10 @@
 ﻿EXEC sp_MSforeachtable "ALTER TABLE ? NOCHECK CONSTRAINT ALL"
 EXEC sp_MSforeachtable 'DROP TABLE ?'
 
+
+
+
+
 ALTER TABLE PendingAccounts ADD password VARCHAR(255) DEFAULT '';
 
 SELECT @@SERVERNAME
@@ -324,19 +328,6 @@ PRINT N'✅ SDMS Database khởi tạo thành công — 11 bảng sẵn sàng.';
 GO
 
 
-<<<<<<< HEAD
-
-
-
-
-
-
-
-
-
-
-=======
->>>>>>> 0fa6010cce6cba08169119141813b5b5cd847ad4
 -- ================================================================
 -- 1. ROOMS (15 phòng)
 -- ================================================================
@@ -362,32 +353,7 @@ GO
 -- 2. STUDENTS (20 sinh viên)
 -- ================================================================
 INSERT INTO Students (id, full_name, birth_date, gender, id_card, phone, email, university, faculty, class_name, address, room_id, status) VALUES
-<<<<<<< HEAD
-('SV001249', N'Nguyễn Văn An',     '15/03/2004', N'Nam', '079204001234', '0901234001', 'an.nguyen01@gmail.com',  N'CMC UNIVERSITY', N'CNTT',        'CNTT01-K65', N'Nam Định',  'P101', N'Đang ở'),
-('SV001250', N'Trần Thị Bình',     '22/07/2004', N'Nữ',  '079204001235', '0901234002', 'binh.tran02@gmail.com',  N'CMC UNIVERSITY', N'Điện - Điện tử', 'DTVT01-K65', N'Hà Nam', 'P101', N'Đang ở'),
-('SV001251', N'Lê Văn Cường',      '01/01/2004', N'Nam', '079204001236', '0901234003', 'cuong.le03@gmail.com',   N'CMC UNIVERSITY', N'Cơ khí',     'CK02-K65',   N'Thanh Hóa', 'P101', N'Đang ở'),
-('SV001252', N'Phạm Thị Dung',     '12/05/2004', N'Nữ',  '079204001237', '0901234004', 'dung.pham04@gmail.com',  N'CMC UNIVERSITY', N'CNTT',       'CNTT02-K65', N'Hải Dương', 'P101', N'Đang ở'),
-('SV001253', N'Hoàng Văn Em',      '30/09/2003', N'Nam', '079203001238', '0901234005', 'em.hoang05@gmail.com',   N'CMC UNIVERSITY', N'Hóa học',    'HH01-K64',   N'Bắc Giang', 'P102', N'Đang ở'),
-('SV001254', N'Vũ Thị Giang',      '18/02/2004', N'Nữ',  '079204001239', '0901234006', 'giang.vu06@gmail.com',   N'CMC UNIVERSITY', N'Marketing',  'MK03-K65',   N'Phú Thọ', 'P102', N'Đang ở'),
-('SV001255', N'Đỗ Văn Hùng',       '05/11/2003', N'Nam', '079203001240', '0901234007', 'hung.do07@gmail.com',    N'CMC UNIVERSITY', N'CNTT',       'CNTT03-K64', N'Vĩnh Phúc', 'P102', N'Đang ở'),
-('SV001256', N'Ngô Thị Lan',       '09/04/2004', N'Nữ',  '079204001241', '0901234008', 'lan.ngo08@gmail.com',    N'CMC UNIVERSITY',     N'Kinh tế đối ngoại', 'KTDN02-K65', N'Ninh Bình', 'P103', N'Đang ở'),
-('SV001257', N'Bùi Văn Khánh',     '25/06/2004', N'Nam', '079204001242', '0901234009', 'khanh.bui09@gmail.com',  N'CMC UNIVERSITY', N'Điện - Điện tử', 'DTVT02-K65', N'Hưng Yên', 'P103', N'Đang ở'),
-('SV001258', N'Đặng Thị Mai',      '14/08/2004', N'Nữ',  '079204001243', '0901234010', 'mai.dang10@gmail.com',   N'CMC UNIVERSITY', N'CNTT',       'CNTT04-K65', N'Thái Bình', 'P104', N'Đang ở'),
-('SV001259', N'Phan Văn Nam',      '03/12/2003', N'Nam', '079203001244', '0901234011', 'nam.phan11@gmail.com',   N'CMC UNIVERSITY', N'Cơ khí',     'CK03-K64',   N'Quảng Ninh', 'P104', N'Đang ở'),
-('SV001260', N'Lý Thị Oanh',       '27/03/2004', N'Nữ',  '079204001245', '0901234012', 'oanh.ly12@gmail.com',    N'CMC UNIVERSITY', N'Hóa học',    'HH02-K65',   N'Hải Phòng', 'P104', N'Đang ở'),
-('SV001261', N'Trịnh Văn Phúc',    '19/10/2004', N'Nam', '079204001246', '0901234013', 'phuc.trinh13@gmail.com', N'CMC UNIVERSITY', N'CNTT',       'CNTT05-K65', N'Nghệ An', 'P104', N'Đang ở'),
-('SV001262', N'Vương Thị Quỳnh',   '08/01/2004', N'Nữ',  '079204001247', '0901234014', 'quynh.vuong14@gmail.com',N'CMC UNIVERSITY', N'Tài chính',  'TC01-K65',   N'Hà Tĩnh', 'P104', N'Đang ở'),
-('SV001263', N'Đinh Văn Sơn',      '21/05/2003', N'Nam', '079203001248', '0901234015', 'son.dinh15@gmail.com',   N'CMC UNIVERSITY', N'Điện - Điện tử', 'DTVT03-K64', N'Thanh Hóa', 'P201', N'Đang ở'),
-('SV001264', N'Tô Thị Thảo',       '11/07/2004', N'Nữ',  '079204001249', '0901234016', 'thao.to16@gmail.com',    N'CMC UNIVERSITY',     N'Quản trị kinh doanh', 'QTKD01-K65', N'Nam Định', 'P201', N'Đang ở'),
-('SV001265', N'Mai Văn Tùng',      '02/02/2004', N'Nam', '079204001250', '0901234017', 'tung.mai17@gmail.com',   N'CMC UNIVERSITY', N'CNTT',       'CNTT06-K65', N'Bắc Ninh', 'P201', N'Đang ở'),
-('SV001266', N'Cao Thị Uyên',      '29/09/2004', N'Nữ',  '079204001251', '0901234018', 'uyen.cao18@gmail.com',   N'CMC UNIVERSITY', N'Cơ khí',     'CK04-K65',   N'Hòa Bình', 'P201', N'Đang ở'),
-('SV001267', N'Hồ Văn Việt',       '16/04/2004', N'Nam', '079204001252',   '0901234019', 'viet.ho19@gmail.com',   N'CMC UNIVERSITY', N'CNTT',       'CNTT07-K65', N'Sơn La', NULL, N'Chờ duyệt'),
-('SV001268', N'Lương Thị Xuân',    '07/06/2004', N'Nữ',  '079204001253',   '0901234020', 'xuan.luong20@gmail.com',N'CMC UNIVERSITY', N'Hóa học',    'HH03-K65',   N'Lào Cai', NULL, N'Mới đăng ký');
-GO
 
-
-
-=======
 ('SV001249', N'Nguyễn Văn An',     '15/03/2004', N'Nam', '079204001234', '0901234001', 'an.nguyen01@gmail.com',  N'ĐH Bách Khoa Hà Nội', N'CNTT',        'CNTT01-K65', N'Nam Định',  'P101', N'Đang ở'),
 ('SV001250', N'Trần Thị Bình',     '22/07/2004', N'Nữ',  '079204001235', '0901234002', 'binh.tran02@gmail.com',  N'ĐH Bách Khoa Hà Nội', N'Điện - Điện tử', 'DTVT01-K65', N'Hà Nam', 'P101', N'Đang ở'),
 ('SV001251', N'Lê Văn Cường',      '01/01/2004', N'Nam', '079204001236', '0901234003', 'cuong.le03@gmail.com',   N'ĐH Bách Khoa Hà Nội', N'Cơ khí',     'CK02-K65',   N'Thanh Hóa', 'P101', N'Đang ở'),
@@ -427,11 +393,7 @@ INSERT INTO Users (username, password, role, full_name, student_id) VALUES
 ('SV001258', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'STUDENT', N'Đặng Thị Mai', 'SV001258');
 GO
 
--- ================================================================
 
-
--- ================================================================
->>>>>>> 0fa6010cce6cba08169119141813b5b5cd847ad4
 -- 5. CONTRACTS (hợp đồng cho sinh viên đang ở)
 -- ================================================================
 INSERT INTO Contracts (id, student_id, student_name, room_id, start_date, end_date, monthly_fee, note, status) VALUES
@@ -530,8 +492,7 @@ INSERT INTO Notifications (id, title, content, type, target, target_id, created_
  'URGENT', 'ALL', '', '2026-06-13 18:00:00', N'Quản trị viên', 1);
 GO
 
-<<<<<<< HEAD
-=======
+
 -- ================================================================
 -- 10. NOTIFICATION READS (một số sinh viên đã đọc)
 -- ================================================================
@@ -546,4 +507,4 @@ GO
 
 PRINT N'✅ Đã chèn dữ liệu ảo (mock data) thành công.';
 GO
->>>>>>> 0fa6010cce6cba08169119141813b5b5cd847ad4
+
