@@ -19,20 +19,14 @@ public class StudentPanel extends JPanel {
     private JTextField        tfSearch;
 
     // Form fields
-    private JTextField  tfId, tfName, tfBirth, tfIdCard, tfPhone, tfEmail, tfAddress;
-    private JComboBox<String> cbGender, cbFaculty, cbClass, cbRoom, cbStatus;
+    private JTextField  tfId, tfName, tfBirth, tfIdCard, tfPhone, tfEmail, tfAddress, tfFaculty, tfClass;
+    private JComboBox<String> cbGender, cbRoom, cbStatus;
+    private JComboBox<String> cbFacultyFilter; // filter khoa ở khu vực bảng, tự cập nhật theo dữ liệu thật
 
     private Student editingStudent = null;
 
     private static final String[] COLS    = {"Mã SV","Họ tên","Phòng","Khoa","SĐT","Email","Trạng thái"};
     private static final String[] STATUS  = {"Đang ở","Mới đăng ký","Chờ duyệt","Đã rời"};
-    private static final String[] FACULTIES = {
-        "Công nghệ thông tin", "Khoa học máy tính", "Hệ thống thông tin",
-        "Kỹ thuật phần mềm", "An toàn thông tin", "Trí tuệ nhân tạo"
-    };
-    private static final String[] CLASSES = {
-        "CNTT01","CNTT02","CNTT03","KTPM01","HTTT01","ATTT01","AI01"
-    };
 
     /** Lấy danh sách mã phòng thật từ database (thay cho danh sách cứng sai trước đây) */
     private static String[] loadRoomIds() {
@@ -41,6 +35,18 @@ public class StudentPanel extends JPanel {
             .collect(Collectors.toList());
         ids.add(0, ""); // cho phép để trống
         return ids.toArray(new String[0]);
+    }
+
+    /** Lấy danh sách các khoa thật đang có trong dữ liệu sinh viên (để hiển thị filter), kèm "Tất cả khoa" ở đầu */
+    private static String[] loadFacultyOptions() {
+        List<String> faculties = DatabaseService.getAllStudents().stream()
+            .map(Student::getFaculty)
+            .filter(f -> f != null && !f.trim().isEmpty())
+            .distinct()
+            .sorted()
+            .collect(Collectors.toList());
+        faculties.add(0, "Tất cả khoa");
+        return faculties.toArray(new String[0]);
     }
 
     public StudentPanel() {
@@ -124,8 +130,8 @@ public class StudentPanel extends JPanel {
         tfIdCard  = UITheme.textField("");
         tfPhone   = UITheme.textField("");
         tfEmail   = UITheme.textField("");
-        cbFaculty = UITheme.comboBox(FACULTIES);
-        cbClass   = UITheme.comboBox(CLASSES);
+        tfFaculty = UITheme.textField("");
+        tfClass   = UITheme.textField("");
         cbRoom    = UITheme.comboBox(loadRoomIds());
         cbStatus  = UITheme.comboBox(STATUS);
         tfAddress = UITheme.textField("");
@@ -164,8 +170,8 @@ public class StudentPanel extends JPanel {
         JPanel row5 = new JPanel(new GridLayout(1, 2, 8, 0));
         row5.setOpaque(false); row5.setAlignmentX(LEFT_ALIGNMENT);
         row5.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
-        row5.add(makeFieldPanel("KHOA", cbFaculty));
-        row5.add(makeFieldPanel("LỚP",  cbClass));
+        row5.add(makeFieldPanel("KHOA", tfFaculty));
+        row5.add(makeFieldPanel("LỚP",  tfClass));
 
         // ── Row 6: Phòng  |  Trạng thái ─────────────────────────
         JPanel row6 = new JPanel(new GridLayout(1, 2, 8, 0));
@@ -269,9 +275,7 @@ public class StudentPanel extends JPanel {
         tfSearch.setPreferredSize(new Dimension(260, 36));
         JComboBox<String> cbStatusFilter = UITheme.comboBox(new String[]{"Tất cả trạng thái","Đang ở","Mới đăng ký","Chờ duyệt","Đã rời"});
         cbStatusFilter.setPreferredSize(new Dimension(160, 36));
-        JComboBox<String> cbFacultyFilter = UITheme.comboBox(new String[]{"Tất cả khoa",
-            "Công nghệ thông tin","Khoa học máy tính","Hệ thống thông tin",
-            "Kỹ thuật phần mềm","An toàn thông tin","Trí tuệ nhân tạo"});
+        cbFacultyFilter = UITheme.comboBox(loadFacultyOptions());
         cbFacultyFilter.setPreferredSize(new Dimension(160, 36));
 
         toolbar.add(tfSearch);
@@ -362,6 +366,24 @@ public class StudentPanel extends JPanel {
         for (Student s : list) tableModel.addRow(s.toRow());
     }
 
+    /** Cập nhật lại danh sách khoa trong combobox filter dựa theo dữ liệu thật trong DB (gọi sau khi thêm/sửa/xóa sinh viên) */
+    private void refreshFacultyFilter() {
+        if (cbFacultyFilter == null) return;
+        String current = (String) cbFacultyFilter.getSelectedItem();
+        cbFacultyFilter.removeAllItems();
+        for (String f : loadFacultyOptions()) cbFacultyFilter.addItem(f);
+        // Giữ lại lựa chọn cũ nếu khoa đó vẫn còn tồn tại, ngược lại quay về "Tất cả khoa"
+        if (current != null) {
+            for (int i = 0; i < cbFacultyFilter.getItemCount(); i++) {
+                if (cbFacultyFilter.getItemAt(i).equals(current)) {
+                    cbFacultyFilter.setSelectedIndex(i);
+                    return;
+                }
+            }
+        }
+        cbFacultyFilter.setSelectedIndex(0);
+    }
+
     private void fillFormFromRow(int row) {
         String id = (String) tableModel.getValueAt(row, 0);
         editingStudent = DatabaseService.getAllStudents().stream().filter(s -> s.getId().equals(id)).findFirst().orElse(null);
@@ -376,14 +398,8 @@ public class StudentPanel extends JPanel {
         cbGender.setSelectedItem(editingStudent.getGender());
         cbRoom.setSelectedItem(editingStudent.getRoomId());
         cbStatus.setSelectedItem(editingStudent.getStatus());
-        // Faculty
-        for (int i = 0; i < cbFaculty.getItemCount(); i++) {
-            if (editingStudent.getFaculty().equals(cbFaculty.getItemAt(i))) { cbFaculty.setSelectedIndex(i); break; }
-        }
-        // Class
-        for (int i = 0; i < cbClass.getItemCount(); i++) {
-            if (editingStudent.getClassName().equals(cbClass.getItemAt(i))) { cbClass.setSelectedIndex(i); break; }
-        }
+        tfFaculty.setText(editingStudent.getFaculty());
+        tfClass.setText(editingStudent.getClassName());
     }
 
     private void addStudent() {
@@ -392,6 +408,9 @@ public class StudentPanel extends JPanel {
         }
         if (tfId.getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(this,"⚠ Vui lòng nhập mã sinh viên!","Lỗi",JOptionPane.WARNING_MESSAGE); return;
+        }
+        if (tfFaculty.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,"⚠ Vui lòng nhập khoa!","Lỗi",JOptionPane.WARNING_MESSAGE); return;
         }
         String roomId = (String)cbRoom.getSelectedItem();
 
@@ -412,8 +431,8 @@ public class StudentPanel extends JPanel {
             (String)cbGender.getSelectedItem(), tfIdCard.getText().trim(),
             tfPhone.getText().trim(), tfEmail.getText().trim(),
             "",                                       // university (không có ô nhập trong form)
-            (String)cbFaculty.getSelectedItem(),      // faculty (khoa đúng)
-            (String)cbClass.getSelectedItem(), tfAddress.getText().trim(),
+            tfFaculty.getText().trim(),               // faculty (khoa đúng, nhập tự do)
+            tfClass.getText().trim(), tfAddress.getText().trim(),
             roomId, (String)cbStatus.getSelectedItem()
         );
         boolean ok = DatabaseService.addStudent(s);
@@ -431,12 +450,16 @@ public class StudentPanel extends JPanel {
                 DatabaseService.updateRoomOccupied(roomId, selectedRoom.getOccupied() + 1);
         }
         refreshTable(DatabaseService.getAllStudents());
+        refreshFacultyFilter();
         clearForm();
         JOptionPane.showMessageDialog(this,"✅ Thêm sinh viên thành công!","Thành công",JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void editStudent() {
         if (editingStudent == null) { JOptionPane.showMessageDialog(this,"⚠ Chọn sinh viên cần sửa từ bảng!","Lưu ý",JOptionPane.WARNING_MESSAGE); return; }
+        if (tfFaculty.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,"⚠ Vui lòng nhập khoa!","Lỗi",JOptionPane.WARNING_MESSAGE); return;
+        }
 
         String oldRoomId = editingStudent.getRoomId();
         String newRoomId = (String)cbRoom.getSelectedItem();
@@ -456,8 +479,8 @@ public class StudentPanel extends JPanel {
         editingStudent.setFullName(tfName.getText().trim());
         editingStudent.setPhone(tfPhone.getText().trim());
         editingStudent.setEmail(tfEmail.getText().trim());
-        editingStudent.setFaculty((String)cbFaculty.getSelectedItem());
-        editingStudent.setClassName((String)cbClass.getSelectedItem());
+        editingStudent.setFaculty(tfFaculty.getText().trim());
+        editingStudent.setClassName(tfClass.getText().trim());
         editingStudent.setAddress(tfAddress.getText().trim());
         editingStudent.setRoomId(newRoomId);
         editingStudent.setStatus((String)cbStatus.getSelectedItem());
@@ -488,6 +511,7 @@ public class StudentPanel extends JPanel {
         }
 
         refreshTable(DatabaseService.getAllStudents());
+        refreshFacultyFilter();
         JOptionPane.showMessageDialog(this,"✅ Cập nhật thành công!","Thành công",JOptionPane.INFORMATION_MESSAGE);
     }
 
@@ -512,6 +536,7 @@ public class StudentPanel extends JPanel {
             }
             editingStudent = null;
             refreshTable(DatabaseService.getAllStudents());
+            refreshFacultyFilter();
             clearForm();
             JOptionPane.showMessageDialog(this,"✅ Đã xóa sinh viên thành công!","Thành công",JOptionPane.INFORMATION_MESSAGE);
         }
@@ -521,9 +546,9 @@ public class StudentPanel extends JPanel {
         editingStudent = null;
         tfId.setText(DatabaseService.nextStudentId());
         tfName.setText(""); tfBirth.setText(""); tfIdCard.setText("");
-        tfPhone.setText(""); tfEmail.setText(""); tfAddress.setText("");
+        tfPhone.setText(""); tfEmail.setText(""); tfAddress.setText(""); tfFaculty.setText(""); tfClass.setText("");
         cbGender.setSelectedIndex(0); cbRoom.setSelectedIndex(0);
-        cbStatus.setSelectedIndex(0); cbFaculty.setSelectedIndex(0); cbClass.setSelectedIndex(0);
+        cbStatus.setSelectedIndex(0);
     }
 
     /** Xuất danh sách sinh viên đang hiển thị ra file CSV (mở được bằng Excel/PDF reader sau khi convert) */
