@@ -193,9 +193,7 @@ public class ContractPanel extends JPanel {
         btnDelete.addActionListener(e -> deleteContract());
         btnReset.addActionListener(e  -> clearForm());
         btnExpire.addActionListener(e -> terminateContract());
-        btnExport.addActionListener(e -> JOptionPane.showMessageDialog(this,
-            "✅ Đã xuất danh sách hợp đồng thành công!", "Thông báo",
-            JOptionPane.INFORMATION_MESSAGE));
+        btnExport.addActionListener(e -> exportContracts());
 
         // Ghép form
         form.add(sec);
@@ -337,6 +335,8 @@ public class ContractPanel extends JPanel {
         btnRefresh.addActionListener(e -> {
             tfSearch.setText("");
             cbFilter.setSelectedIndex(0);
+            contracts.clear();
+            contracts.addAll(DatabaseService.getAllContracts());
             refreshTable(contracts);
         });
 
@@ -407,6 +407,11 @@ public class ContractPanel extends JPanel {
             tfNote.getText().trim(),
             Contract.Status.valueOf(statusFromText((String) cbStatus.getSelectedItem()))
         );
+        boolean ok = DatabaseService.addContract(c);
+        if (!ok) {
+            showWarn("Không thể lưu hợp đồng vào cơ sở dữ liệu! Kiểm tra lại mã HĐ có bị trùng không.");
+            return;
+        }
         contracts.add(c);
         refreshTable(contracts);
         clearForm();
@@ -433,6 +438,11 @@ public class ContractPanel extends JPanel {
         editingContract.setStatus(
             Contract.Status.valueOf(statusFromText((String) cbStatus.getSelectedItem()))
         );
+        boolean ok = DatabaseService.updateContract(editingContract);
+        if (!ok) {
+            showWarn("Không thể cập nhật hợp đồng trong cơ sở dữ liệu!");
+            return;
+        }
         refreshTable(contracts);
         showSuccess("Cập nhật hợp đồng thành công!");
     }
@@ -446,6 +456,11 @@ public class ContractPanel extends JPanel {
             "Xóa hợp đồng " + editingContract.getId() + " của " + editingContract.getStudentName() + "?",
             "Xác nhận xóa", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (r == JOptionPane.YES_OPTION) {
+            boolean ok = DatabaseService.deleteContract(editingContract.getId());
+            if (!ok) {
+                showWarn("Không thể xóa hợp đồng trong cơ sở dữ liệu!");
+                return;
+            }
             contracts.remove(editingContract);
             editingContract = null;
             refreshTable(contracts);
@@ -468,6 +483,11 @@ public class ContractPanel extends JPanel {
         if (r == JOptionPane.YES_OPTION) {
             editingContract.setStatus(Contract.Status.TERMINATED);
             editingContract.setEndDate(LocalDate.now());
+            boolean ok = DatabaseService.updateContract(editingContract);
+            if (!ok) {
+                showWarn("Không thể cập nhật trạng thái hợp đồng trong cơ sở dữ liệu!");
+                return;
+            }
             refreshTable(contracts);
             showSuccess("Đã chấm dứt hợp đồng " + editingContract.getId());
         }
@@ -557,10 +577,9 @@ public class ContractPanel extends JPanel {
 
     // ── Tiện ích ─────────────────────────────────────────────────
 
-    /** Sinh mã HĐ tiếp theo */
+    /** Sinh mã HĐ tiếp theo — lấy trực tiếp từ database để tránh trùng mã */
     private String nextContractId() {
-        if (contracts.isEmpty()) return "HĐ0001";
-        return Contract.nextId(contracts.get(contracts.size() - 1).getId());
+        return DatabaseService.nextContractId();
     }
 
     /** Parse tiền từ chuỗi, trả về 0 nếu không hợp lệ */
@@ -623,5 +642,36 @@ public class ContractPanel extends JPanel {
             lbl.setBackground(sel ? UITheme.PRIMARY_LIGHT : UITheme.WHITE);
             return lbl;
         };
+    }
+
+    /** Xuất danh sách hợp đồng ra file CSV (mở được bằng Excel) */
+    private void exportContracts() {
+        javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+        fc.setSelectedFile(new java.io.File("DanhSach_HopDong.csv"));
+        fc.setDialogTitle("Lưu danh sách hợp đồng");
+        if (fc.showSaveDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+
+        java.io.File file = fc.getSelectedFile();
+        if (!file.getName().toLowerCase().endsWith(".csv"))
+            file = new java.io.File(file.getPath() + ".csv");
+
+        try (java.io.PrintWriter pw = new java.io.PrintWriter(
+                new java.io.OutputStreamWriter(new java.io.FileOutputStream(file), "UTF-8"))) {
+            pw.print('\uFEFF');
+            pw.println("Mã HĐ,Mã SV,Tên sinh viên,Phòng,Ngày bắt đầu,Ngày kết thúc,Tiền/tháng,Trạng thái,Ghi chú");
+            for (com.sdms.model.Contract c : contracts) {
+                pw.printf("%s,%s,%s,%s,%s,%s,%d,%s,\"%s\"%n",
+                    c.getId(), c.getStudentId(), c.getStudentName(), c.getRoomId(),
+                    c.getStartDateStr(), c.getEndDateStr(), c.getMonthlyFee(),
+                    c.getStatusText(),
+                    c.getNote() == null ? "" : c.getNote().replace("\"", "\"\""));
+            }
+            JOptionPane.showMessageDialog(this,
+                "✅ Đã xuất " + contracts.size() + " hợp đồng ra:\n" + file.getAbsolutePath(),
+                "Xuất thành công", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                "❌ Xuất thất bại: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

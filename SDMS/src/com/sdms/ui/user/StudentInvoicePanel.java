@@ -3,7 +3,6 @@ package com.sdms.ui.user;
 import com.sdms.model.Invoice;
 import com.sdms.model.Student;
 import com.sdms.model.User;
-import com.sdms.utils.DataStore;
 import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
@@ -15,13 +14,13 @@ import java.util.stream.Collectors;
 
 /**
  * Panel xem hóa đơn tháng hiện tại của sinh viên.
- * Hiển thị: Chi tiết hóa đơn | Thanh toán | Hướng dẫn.
+ * Dữ liệu từ DB. Khi thanh toán, gọi DatabaseService.markInvoicePaid() để lưu DB.
  */
 public class StudentInvoicePanel extends JPanel {
 
     private final User    currentUser;
     private final Student student;
-    private       Invoice currentInvoice; // Hóa đơn tháng mới nhất chưa trả
+    private       Invoice currentInvoice;
 
     public StudentInvoicePanel(User currentUser) {
         this.currentUser    = currentUser;
@@ -46,7 +45,6 @@ public class StudentInvoicePanel extends JPanel {
                 .findFirst().orElse(null);
             if (s != null) return s;
         }
-        // Fallback: username == studentId
         return DatabaseService.getAllStudents().stream()
             .filter(st -> st.getId().equalsIgnoreCase(currentUser.getUsername()))
             .findFirst().orElse(null);
@@ -54,20 +52,19 @@ public class StudentInvoicePanel extends JPanel {
 
     private Invoice findCurrentInvoice() {
         if (student == null) return null;
-        // Ưu tiên dùng getInvoicesByStudent để đúng student_id trong DB
         List<Invoice> list = DatabaseService.getInvoicesByStudent(student.getId());
         if (list.isEmpty()) {
-            // Fallback: tìm theo getAllInvoices (phòng hợp nếu student_id map khác)
             list = DatabaseService.getAllInvoices().stream()
                 .filter(i -> i.getStudentId().equals(student.getId()))
                 .collect(Collectors.toList());
         }
-        // Ưu tiên hóa đơn chưa trả
+        // Ưu tiên hóa đơn chưa trả; nếu tất cả đã trả thì hiện mới nhất
         return list.stream().filter(i -> !i.isPaid()).findFirst()
-            .orElse(list.isEmpty() ? null : list.get(list.size() - 1));
+            .orElse(list.isEmpty() ? null : list.get(0));
     }
 
     // ── Header ────────────────────────────────────────────────────
+
     private JPanel buildHeader() {
         JPanel p = new JPanel(new BorderLayout());
         p.setBackground(UITheme.WHITE);
@@ -89,7 +86,7 @@ public class StudentInvoicePanel extends JPanel {
         left.add(title, BorderLayout.NORTH);
         left.add(sub,   BorderLayout.SOUTH);
 
-        String month = currentInvoice != null ? currentInvoice.getMonth() : "06/2026";
+        String month = currentInvoice != null ? currentInvoice.getMonth() : "—";
         JLabel lblMonth = UITheme.badge("Tháng " + month,
             UITheme.INFO_BG, UITheme.INFO_TEXT);
 
@@ -99,6 +96,7 @@ public class StudentInvoicePanel extends JPanel {
     }
 
     // ── Nội dung chính ────────────────────────────────────────────
+
     private JPanel buildContent() {
         JPanel content = new JPanel();
         content.setBackground(UITheme.BG_LIGHT);
@@ -108,10 +106,8 @@ public class StudentInvoicePanel extends JPanel {
         if (currentInvoice == null) {
             content.add(buildNoInvoiceCard());
         } else {
-            // Hàng trên: trạng thái lớn + tóm tắt
             content.add(buildStatusBanner());
             content.add(Box.createVerticalStrut(16));
-            // Hàng giữa: chi tiết + hướng dẫn
             JPanel middleRow = new JPanel(new GridLayout(1, 2, 16, 0));
             middleRow.setOpaque(false);
             middleRow.setAlignmentX(LEFT_ALIGNMENT);
@@ -124,11 +120,12 @@ public class StudentInvoicePanel extends JPanel {
     }
 
     // ── Banner trạng thái lớn ─────────────────────────────────────
+
     private JPanel buildStatusBanner() {
-        boolean paid = currentInvoice.isPaid();
-        Color   bg   = paid ? UITheme.SUCCESS_BG  : UITheme.WARNING_BG;
-        Color   fg   = paid ? UITheme.SUCCESS_TEXT : UITheme.WARNING_TEXT;
-        Color   border = paid ? new Color(0x6EE7B7) : new Color(0xFCD34D);
+        boolean paid   = currentInvoice.isPaid();
+        Color   bg     = paid ? UITheme.SUCCESS_BG   : UITheme.WARNING_BG;
+        Color   fg     = paid ? UITheme.SUCCESS_TEXT : UITheme.WARNING_TEXT;
+        Color   border = paid ? new Color(0x6EE7B7)  : new Color(0xFCD34D);
 
         JPanel banner = new JPanel(new BorderLayout(16, 0));
         banner.setBackground(bg);
@@ -139,11 +136,9 @@ public class StudentInvoicePanel extends JPanel {
         banner.setAlignmentX(LEFT_ALIGNMENT);
         banner.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
 
-        // Icon lớn
         JLabel icon = new JLabel(paid ? "✅" : "⏳");
         icon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 36));
 
-        // Nội dung
         JLabel lblStatus = new JLabel(paid ? "Đã thanh toán" : "Chưa thanh toán");
         lblStatus.setFont(UITheme.FONT_H2);
         lblStatus.setForeground(fg);
@@ -160,8 +155,7 @@ public class StudentInvoicePanel extends JPanel {
         textPanel.add(lblStatus);
         textPanel.add(lblDue);
 
-        // Tổng tiền + nút
-        JLabel lblTotal = new JLabel(String.format("%,d đ", currentInvoice.getTotal()));
+        JLabel lblTotal = new JLabel(fmt(currentInvoice.getTotal()));
         lblTotal.setFont(new Font("Segoe UI", Font.BOLD, 24));
         lblTotal.setForeground(fg);
         lblTotal.setHorizontalAlignment(SwingConstants.RIGHT);
@@ -182,6 +176,7 @@ public class StudentInvoicePanel extends JPanel {
     }
 
     // ── Card chi tiết hóa đơn ─────────────────────────────────────
+
     private JPanel buildDetailCard() {
         JPanel card = new JPanel(new BorderLayout(0, 14));
         card.setBackground(UITheme.WHITE);
@@ -194,30 +189,26 @@ public class StudentInvoicePanel extends JPanel {
         title.setFont(UITheme.FONT_LABEL);
         title.setForeground(UITheme.TEXT_PRIMARY);
 
-        // Thông tin hóa đơn
         JPanel info = new JPanel(new GridLayout(0, 2, 8, 10));
         info.setOpaque(false);
 
-        addDetailRow(info, "Mã hóa đơn",    currentInvoice.getId(),         false);
+        addDetailRow(info, "Mã hóa đơn",    currentInvoice.getId(),          false);
         addDetailRow(info, "Tháng",          "Tháng " + currentInvoice.getMonth(), false);
-        addDetailRow(info, "Phòng",          currentInvoice.getRoomId(),     false);
-        addDetailRow(info, "Tên sinh viên",  currentInvoice.getStudentName(),false);
+        addDetailRow(info, "Phòng",          currentInvoice.getRoomId(),      false);
+        addDetailRow(info, "Tên sinh viên",  currentInvoice.getStudentName(), false);
 
-        // Separator
         JSeparator sep1 = new JSeparator(); sep1.setForeground(UITheme.BORDER);
 
-        // Chi tiết các khoản
         JPanel items = new JPanel(new GridLayout(0, 2, 8, 8));
         items.setOpaque(false);
 
         addDetailRow(items, "🏠 Tiền phòng",
-            fmt(currentInvoice.getRoomFee()), false);
+            fmt(currentInvoice.getRoomFee()),     false);
         addDetailRow(items, "⚡ Tiền điện",
             fmt(currentInvoice.getElectricFee()), false);
         addDetailRow(items, "💧 Tiền nước",
-            fmt(currentInvoice.getWaterFee()), false);
+            fmt(currentInvoice.getWaterFee()),    false);
 
-        // Separator
         JSeparator sep2 = new JSeparator(); sep2.setForeground(UITheme.BORDER);
 
         JPanel totalRow = new JPanel(new GridLayout(1, 2, 8, 0));
@@ -263,6 +254,7 @@ public class StudentInvoicePanel extends JPanel {
     }
 
     // ── Card hướng dẫn thanh toán ─────────────────────────────────
+
     private JPanel buildPaymentGuideCard() {
         JPanel card = new JPanel(new BorderLayout(0, 14));
         card.setBackground(UITheme.WHITE);
@@ -279,30 +271,27 @@ public class StudentInvoicePanel extends JPanel {
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
         body.setOpaque(false);
 
-        // Phương thức 1: Chuyển khoản
         body.add(payMethod("🏦 Chuyển khoản ngân hàng",
             new String[][]{
-                {"Ngân hàng", "Vietcombank"},
-                {"Số tài khoản", "1234567890"},
-                {"Chủ TK", "KTX ĐẠI HỌC SDMS"},
-                {"Nội dung CK", student != null
-                    ? student.getId() + " " + currentInvoice.getMonth()
-                    : currentInvoice.getId()},
+                {"Ngân hàng",     "Vietcombank"},
+                {"Số tài khoản",  "1234567890"},
+                {"Chủ TK",        "KTX ĐẠI HỌC SDMS"},
+                {"Nội dung CK",   student != null
+                    ? student.getId() + " " + (currentInvoice != null ? currentInvoice.getMonth() : "")
+                    : (currentInvoice != null ? currentInvoice.getId() : "")},
             }));
 
         body.add(Box.createVerticalStrut(12));
 
-        // Phương thức 2: Nộp trực tiếp
         body.add(payMethod("🏢 Nộp tiền mặt tại văn phòng",
             new String[][]{
-                {"Địa điểm", "Phòng BQL — Tầng 1 Nhà A"},
-                {"Giờ làm việc", "7:30 – 17:00 (Thứ 2 – Thứ 6)"},
-                {"Mang theo", "Thẻ SV + phiếu báo hóa đơn"},
+                {"Địa điểm",    "Phòng BQL — Tầng 1 Nhà A"},
+                {"Giờ làm việc","7:30 – 17:00 (Thứ 2 – Thứ 6)"},
+                {"Mang theo",   "Thẻ SV + phiếu báo hóa đơn"},
             }));
 
         body.add(Box.createVerticalStrut(12));
 
-        // Lưu ý hạn thanh toán
         JLabel warn = new JLabel(
             "<html>⚠  <b>Lưu ý:</b> Hạn thanh toán là ngày <b>15</b> hàng tháng. "
             + "Quá hạn sẽ bị phạt 2% mỗi ngày trễ.</html>");
@@ -315,14 +304,13 @@ public class StudentInvoicePanel extends JPanel {
             new EmptyBorder(8, 10, 8, 10)
         ));
 
-        body.add(warn);
-
-        // Nút in hóa đơn
         JButton btnPrint = UITheme.outlineBtn("🖨 In hóa đơn");
         btnPrint.setAlignmentX(LEFT_ALIGNMENT);
         btnPrint.addActionListener(e -> JOptionPane.showMessageDialog(this,
             "✅ Đã gửi lệnh in hóa đơn!", "In hóa đơn",
             JOptionPane.INFORMATION_MESSAGE));
+
+        body.add(warn);
         body.add(Box.createVerticalStrut(10));
         body.add(btnPrint);
 
@@ -331,7 +319,6 @@ public class StudentInvoicePanel extends JPanel {
         return card;
     }
 
-    /** Tạo block một phương thức thanh toán */
     private JPanel payMethod(String name, String[][] fields) {
         JPanel p = new JPanel(new BorderLayout(0, 6));
         p.setOpaque(false);
@@ -365,6 +352,7 @@ public class StudentInvoicePanel extends JPanel {
     }
 
     // ── Không có hóa đơn ─────────────────────────────────────────
+
     private JPanel buildNoInvoiceCard() {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(UITheme.WHITE);
@@ -391,7 +379,8 @@ public class StudentInvoicePanel extends JPanel {
         return card;
     }
 
-    // ── Thanh toán ────────────────────────────────────────────────
+    // ── Xử lý thanh toán — lưu vào DB ────────────────────────────
+
     private void processPayment() {
         if (currentInvoice == null || currentInvoice.isPaid()) return;
 
@@ -405,12 +394,23 @@ public class StudentInvoicePanel extends JPanel {
             JOptionPane.QUESTION_MESSAGE, null, methods, methods[0]);
 
         if (method != null) {
+            // Lưu vào DB trước
+            boolean saved = DatabaseService.markInvoicePaid(currentInvoice.getId(), true);
+            if (!saved) {
+                JOptionPane.showMessageDialog(this,
+                    "❌ Không thể cập nhật thanh toán vào hệ thống. Vui lòng thử lại.",
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Cập nhật local sau khi DB thành công
             currentInvoice.setPaid(true);
             JOptionPane.showMessageDialog(this,
                 "<html>✅ <b>Thanh toán thành công!</b><br>"
                 + "Số tiền: " + fmt(currentInvoice.getTotal()) + "<br>"
                 + "Phương thức: " + method + "</html>",
                 "Thành công", JOptionPane.INFORMATION_MESSAGE);
+
             // Refresh giao diện
             removeAll();
             setLayout(new BorderLayout());

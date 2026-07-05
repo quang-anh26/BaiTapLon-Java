@@ -49,9 +49,7 @@ public class ReportPanel extends JPanel {
 
         // Nút xuất báo cáo tổng hợp
         JButton btnExport = UITheme.successBtn("📥 Xuất báo cáo tổng hợp");
-        btnExport.addActionListener(e -> JOptionPane.showMessageDialog(this,
-            "✅ Đã xuất báo cáo tổng hợp thành file Excel!", "Thông báo",
-            JOptionPane.INFORMATION_MESSAGE));
+        btnExport.addActionListener(e -> exportReport());
 
         p.add(left,      BorderLayout.WEST);
         p.add(btnExport, BorderLayout.EAST);
@@ -578,5 +576,67 @@ public class ReportPanel extends JPanel {
             lbl.setBackground(sel ? UITheme.PRIMARY_LIGHT : UITheme.WHITE);
             return lbl;
         };
+    }
+
+    private void exportReport() {
+        javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+        fc.setSelectedFile(new java.io.File("BaoCao_TongHop.csv"));
+        fc.setDialogTitle("Lưu báo cáo tổng hợp");
+        if (fc.showSaveDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+        java.io.File file = fc.getSelectedFile();
+        if (!file.getName().endsWith(".csv"))
+            file = new java.io.File(file.getPath() + ".csv");
+        try (java.io.PrintWriter pw = new java.io.PrintWriter(
+                new java.io.OutputStreamWriter(new java.io.FileOutputStream(file), "UTF-8"))) {
+            pw.print('\uFEFF'); // BOM UTF-8
+
+            // --- SINH VIÊN ---
+            pw.println("=== SINH VIÊN ===");
+            pw.println("Mã SV,Họ tên,Phòng,Khoa,SĐT,Email,Trạng thái");
+            for (com.sdms.model.Student s : DatabaseService.getAllStudents()) {
+                pw.printf("%s,%s,%s,%s,%s,%s,%s%n",
+                    s.getId(), s.getFullName(),
+                    s.getRoomId().isEmpty() ? "—" : s.getRoomId(),
+                    s.getFaculty(), s.getPhone(), s.getEmail(), s.getStatus());
+            }
+            pw.println();
+
+            // --- HỢP ĐỒNG ---
+            pw.println("=== HỢP ĐỒNG ===");
+            pw.println("Mã HĐ,Mã SV,Tên SV,Phòng,Ngày BĐ,Ngày KT,Tiền/tháng,Trạng thái");
+            for (com.sdms.model.Contract c : DatabaseService.getAllContracts()) {
+                pw.printf("%s,%s,%s,%s,%s,%s,%d,%s%n",
+                    c.getId(), c.getStudentId(), c.getStudentName(), c.getRoomId(),
+                    c.getStartDate(), c.getEndDate(), c.getMonthlyFee(), c.getStatus());
+            }
+            pw.println();
+
+            // --- HÓA ĐƠN ---
+            pw.println("=== HÓA ĐƠN THANH TOÁN ===");
+            pw.println("Mã HĐ,Sinh viên,Phòng,Tháng,Tiền phòng,Tiền điện,Tiền nước,Tổng,Trạng thái");
+            for (com.sdms.model.Invoice inv : DatabaseService.getAllInvoices()) {
+                pw.printf("%s,%s,%s,%s,%d,%d,%d,%d,%s%n",
+                    inv.getId(), inv.getStudentName(), inv.getRoomId(), inv.getMonth(),
+                    inv.getRoomFee(), inv.getElectricFee(), inv.getWaterFee(), inv.getTotal(),
+                    inv.isPaid() ? "Đã thanh toán" : "Chưa thanh toán");
+            }
+            pw.println();
+
+            // --- VI PHẠM ---
+            pw.println("=== VI PHẠM ===");
+            pw.println("Mã VP,Mã SV,Tên SV,Phòng,Ngày,Loại,Mức độ,Tiền phạt,Trạng thái");
+            for (com.sdms.model.Violation v : DatabaseService.getAllViolations()) {
+                pw.printf("%s,%s,%s,%s,%s,%s,%s,%d,%s%n",
+                    v.getId(), v.getStudentId(), v.getStudentName(), v.getRoomId(),
+                    v.getDate(), v.getType(), v.getSeverity(), v.getFine(), v.getStatus());
+            }
+
+            JOptionPane.showMessageDialog(this,
+                "✅ Đã xuất báo cáo tổng hợp ra:\n" + file.getAbsolutePath(),
+                "Xuất thành công", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                "❌ Xuất thất bại: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

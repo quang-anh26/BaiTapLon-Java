@@ -13,6 +13,9 @@ import javax.swing.border.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.*;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import java.io.File;
 
 public class LoginFrame extends JFrame {
 
@@ -23,173 +26,270 @@ public class LoginFrame extends JFrame {
     private JLabel lblError;
     private JButton btnRegister;
 
+    // ── layer nền xanh + ảnh cover ─────────────────────────────────
+    private BackgroundPanel bgPanel;
+    // ── card trắng nổi lên ───────────────────────────────────────────
+    private RoundedCardPanel cardPanel;
+    private JLayeredPane layeredPane;
+
     public LoginFrame() {
         setTitle("SDMS — Student Dormitory Management System");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
-        // ── KHẮC PHỤC CHÍNH ĐỂ THAY ĐỔI KÍCH THƯỚC THOẢI MÁI ────────────────
-        setResizable(true); // 1. Cho phép phóng to toàn màn hình (bật nút ô vuông)
-        setSize(920, 620); // 2. Tăng nhẹ chiều cao từ 580 lên 620 để vừa vặn khi nút Đăng ký hiện ra
-        setMinimumSize(new Dimension(880, 600)); // 3. Giới hạn kích thước nhỏ nhất tránh người dùng thu nhỏ quá mức làm
-                                                 // vỡ form
+        setResizable(true);
+        setSize(1100, 700);
+        setMinimumSize(new Dimension(900, 600));
 
         setLocationRelativeTo(null);
         initUI();
+
+        setBackgroundImageResource("image2.jpg");
     }
 
     private void initUI() {
-        JPanel root = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                g.setColor(UITheme.WHITE);
-                g.fillRect(0, 0, getWidth(), getHeight());
-            }
-        };
-        root.setOpaque(true);
+        layeredPane = new JLayeredPane();
+        setContentPane(layeredPane);
 
-        root.add(buildLeft(), BorderLayout.WEST);
-        root.add(buildRight(), BorderLayout.CENTER);
-        setContentPane(root);
+        // ── Layer 0: nền xanh full khung (chứa ảnh cover + logo + text) ──
+        bgPanel = new BackgroundPanel();
+        layeredPane.add(bgPanel, JLayeredPane.DEFAULT_LAYER);
+
+        // ── Layer 1: card trắng nổi bên phải ─────────────────────────────
+        cardPanel = new RoundedCardPanel();
+        cardPanel.setLayout(new GridBagLayout());
+        buildCardContent(cardPanel);
+        layeredPane.add(cardPanel, JLayeredPane.PALETTE_LAYER);
+
+        layeredPane.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                layoutLayers();
+            }
+        });
     }
 
-    // ── LEFT PANEL ────────────────────────────────────────────────
-    private JPanel buildLeft() {
-        JPanel panel = new JPanel(null) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                GradientPaint gp = new GradientPaint(0, 0, new Color(0x1E40AF),
-                        getWidth(), getHeight(), new Color(0x3B82F6));
-                g2.setPaint(gp);
-                g2.fillRect(0, 0, getWidth(), getHeight());
-                // decorative circles
-                g2.setColor(new Color(255, 255, 255, 15));
-                g2.fillOval(getWidth() - 120, -60, 200, 200);
-                g2.fillOval(-60, getHeight() - 120, 220, 220);
-                g2.setColor(new Color(255, 255, 255, 8));
-                g2.fillOval(getWidth() / 2 - 80, getHeight() / 2 - 80, 160, 160);
-                g2.dispose();
+    /** Đặt lại vị trí + kích thước cho 2 layer mỗi khi cửa sổ resize. */
+    private void layoutLayers() {
+        int w = layeredPane.getWidth();
+        int h = layeredPane.getHeight();
+
+        bgPanel.setBounds(0, 0, w, h);
+
+        // Card chiếm ~58% chiều rộng (tối thiểu 420, tối đa 620), cách lề các phía
+        int margin = Math.max(30, (int) (h * 0.06));
+        int cardW = Math.max(420, Math.min(620, (int) (w * 0.50)));
+        int cardH = h - margin * 2;
+        int cardX = w - cardW - margin;
+        int cardY = margin;
+
+        cardPanel.setBounds(cardX, cardY, cardW, cardH);
+
+        bgPanel.revalidate();
+        cardPanel.revalidate();
+        layeredPane.repaint();
+    }
+
+    @Override
+    public void setVisible(boolean b) {
+        super.setVisible(b);
+        if (b)
+            layoutLayers();
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // BACKGROUND PANEL — nền gradient xanh + ảnh cover (không bị vỡ)
+    // ════════════════════════════════════════════════════════════════
+    private class BackgroundPanel extends JPanel {
+
+        private BufferedImage bgImage; // ảnh do người dùng chèn (có thể null)
+
+        BackgroundPanel() {
+            setLayout(null);
+            setOpaque(true);
+            buildDecor();
+        }
+
+        void setImage(BufferedImage img) {
+            this.bgImage = img;
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+
+            int w = getWidth(), h = getHeight();
+
+            // 1) Gradient nền xanh luôn vẽ trước (làm lớp lót)
+            GradientPaint gp = new GradientPaint(0, 0, new Color(0x1E40AF), w, h, new Color(0x3B82F6));
+            g2.setPaint(gp);
+            g2.fillRect(0, 0, w, h);
+
+            // 2) Nếu có ảnh chèn -> vẽ kiểu "cover": giữ tỉ lệ, fill kín, crop phần dư
+            if (bgImage != null) {
+                drawImageCover(g2, bgImage, 0, 0, w, h);
+                // overlay xanh mờ để chữ/icon vẫn đọc được trên mọi ảnh
+                g2.setColor(new Color(0x1E40AF));
+                Composite old = g2.getComposite();
+                g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
+                g2.fillRect(0, 0, w, h);
+                g2.setComposite(old);
             }
-        };
-        panel.setPreferredSize(new Dimension(380, 580));
 
-        // Logo box
-        JPanel logoBox = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(255, 255, 255, 40));
-                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 16, 16));
-                g2.setColor(new Color(255, 255, 255, 60));
-                g2.setStroke(new BasicStroke(1f));
-                g2.draw(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, 16, 16));
-                g2.dispose();
-                super.paintComponent(g);
+            // 3) Decor: vòng tròn mờ
+            g2.setColor(new Color(255, 255, 255, 15));
+            g2.fillOval(w - 160, -80, 260, 260);
+            g2.setColor(new Color(255, 255, 255, 10));
+            g2.fillOval(-80, h - 160, 280, 280);
+
+            g2.dispose();
+            // KHÔNG gọi super.paintComponent(g) ở đây — panel này tự vẽ kín toàn bộ nền,
+            // gọi super sẽ làm Swing phủ màu nền mặc định (xám) đè lên hết.
+        }
+
+        /** Vẽ ảnh theo kiểu CSS background-size:cover — không méo, không vỡ. */
+        private void drawImageCover(Graphics2D g2, BufferedImage img, int x, int y, int w, int h) {
+            double imgRatio = (double) img.getWidth() / img.getHeight();
+            double boxRatio = (double) w / h;
+
+            int sw, sh, sx, sy;
+            if (imgRatio > boxRatio) {
+                // ảnh "rộng" hơn khung -> fit theo chiều cao, crop 2 bên
+                sh = img.getHeight();
+                sw = (int) (sh * boxRatio);
+                sx = (img.getWidth() - sw) / 2;
+                sy = 0;
+            } else {
+                // ảnh "cao" hơn khung -> fit theo chiều rộng, crop trên/dưới
+                sw = img.getWidth();
+                sh = (int) (sw / boxRatio);
+                sx = 0;
+                sy = (img.getHeight() - sh) / 2;
             }
-        };
-        logoBox.setOpaque(false);
-        logoBox.setLayout(new BorderLayout());
-        logoBox.setBounds(154, 80, 72, 72);
-        JLabel logoIcon = new JLabel(buildingIcon(), SwingConstants.CENTER);
-        logoBox.add(logoIcon, BorderLayout.CENTER);
+            g2.drawImage(img, x, y, x + w, y + h, sx, sy, sx + sw, sy + sh, null);
+        }
 
-        JLabel lblTitle = new JLabel("<html><center>Student Dormitory<br>Management System</center></html>",
-                SwingConstants.CENTER);
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        lblTitle.setForeground(Color.WHITE);
-        lblTitle.setBounds(30, 168, 320, 56);
-
-        JLabel lblSub = new JLabel(
-                "<html><center>Quản lý ký túc xá sinh viên thông minh<br>hiện đại · nhanh chóng · tiện lợi</center></html>",
-                SwingConstants.CENTER);
-        lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        lblSub.setForeground(new Color(255, 255, 255, 180));
-        lblSub.setBounds(30, 232, 320, 50);
-
-        // Building illustration
-        JLabel building = new JLabel(buildingIllustration());
-        building.setBounds(40, 295, 300, 160);
-
-        // Dots
-        JPanel dots = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0)) {
-            {
-                setOpaque(false);
-            }
-        };
-        for (int i = 0; i < 3; i++) {
-            final int index = i;
-            JLabel d = new JLabel() {
+        private void buildDecor() {
+            JPanel logoBox = new JPanel() {
                 @Override
                 protected void paintComponent(Graphics g) {
                     Graphics2D g2 = (Graphics2D) g.create();
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    g2.setColor(index == 1 ? Color.WHITE : new Color(255, 255, 255, 120));
-                    g2.fillOval(0, 0, 8, 8);
+                    g2.setColor(new Color(255, 255, 255, 40));
+                    g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 16, 16));
+                    g2.setColor(new Color(255, 255, 255, 60));
+                    g2.draw(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, 16, 16));
                     g2.dispose();
-                }
-
-                @Override
-                public Dimension getPreferredSize() {
-                    return new Dimension(8, 8);
+                    super.paintComponent(g);
                 }
             };
-            dots.add(d);
-        }
-        dots.setBounds(140, 465, 100, 16);
+            logoBox.setOpaque(false);
+            logoBox.setLayout(new BorderLayout());
+            logoBox.setBounds(80, 90, 72, 72);
+            logoBox.add(new JLabel(buildingIcon(), SwingConstants.CENTER), BorderLayout.CENTER);
 
-        panel.add(logoBox);
-        panel.add(lblTitle);
-        panel.add(lblSub);
-        panel.add(building);
-        panel.add(dots);
-        return panel;
+            // ── Tiêu đề + phụ đề dùng ShadowLabel để luôn nổi rõ trên mọi nền ảnh ──
+            JLabel lblTitle = new ShadowLabel("<html><b>Student Dormitory<br>Management System</b></html>");
+            lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 26));
+            lblTitle.setForeground(Color.WHITE);
+            lblTitle.setBounds(75, 180, 420, 70);
+
+            JLabel lblSub = new ShadowLabel(
+                    "<html>Quản lý ký túc xá sinh viên thông minh<br>hiện đại · nhanh chóng · tiện lợi</html>");
+            lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+            lblSub.setForeground(new Color(255, 255, 255, 230));
+            lblSub.setBounds(75, 255, 420, 50);
+
+
+            JPanel dots = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+            dots.setOpaque(false);
+            for (int i = 0; i < 3; i++) {
+                final int idx = i;
+                JLabel d = new JLabel() {
+                    @Override
+                    protected void paintComponent(Graphics g) {
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        g2.setColor(idx == 0 ? Color.WHITE : new Color(255, 255, 255, 120));
+                        g2.fillOval(0, 0, 8, 8);
+                        g2.dispose();
+                    }
+
+                    @Override
+                    public Dimension getPreferredSize() {
+                        return new Dimension(8, 8);
+                    }
+                };
+                dots.add(d);
+            }
+            dots.setBounds(75, 555, 100, 16);
+
+            add(logoBox);
+            add(lblTitle);
+            add(lblSub);
+            add(dots);
+        }
     }
 
-    // ── RIGHT PANEL ───────────────────────────────────────────────
-    // ── RIGHT PANEL (ĐÃ ĐỔI SANG GRIDBAGLAYOUT ĐỂ TỰ CO DÃN THEO MÀN HÌNH) ──
-    private JPanel buildRight() {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(UITheme.WHITE);
-        panel.setBorder(new EmptyBorder(30, 40, 30, 40)); // Tạo khoảng đệm cách lề xung quanh
+    // ════════════════════════════════════════════════════════════════
+    // CARD TRẮNG (bo góc, đổ bóng) chứa form đăng nhập
+    // ════════════════════════════════════════════════════════════════
+    private static class RoundedCardPanel extends JPanel {
+        RoundedCardPanel() {
+            setOpaque(false);
+            setBorder(new EmptyBorder(40, 44, 40, 44));
+        }
 
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            // đổ bóng nhẹ
+            g2.setColor(new Color(0, 0, 0, 40));
+            g2.fill(new RoundRectangle2D.Float(4, 6, getWidth() - 8, getHeight() - 8, 22, 22));
+            g2.setColor(UITheme.WHITE);
+            g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 8, getHeight() - 12, 22, 22));
+            g2.dispose();
+            super.paintComponent(g);
+        }
+    }
+
+    // ── Nội dung form (giữ nguyên logic cũ, chỉ đổi panel chứa) ─────────
+    private void buildCardContent(JPanel panel) {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
-        gbc.gridwidth = 2; // Riêng các tiêu đề sẽ chiếm hết 2 cột chiều ngang
-        gbc.fill = GridBagConstraints.HORIZONTAL; // Cho phép dãn hết chiều ngang màn hình
-        gbc.weightx = 1.0; // Tỷ lệ dãn nở theo chiều ngang là 100%
-        gbc.insets = new Insets(0, 0, 8, 0); // Khoảng cách dưới
+        gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        gbc.insets = new Insets(0, 0, 8, 0);
 
-        // Welcome
         JLabel welcome = new JLabel("Chào mừng trở lại 👋");
-        welcome.setFont(new Font("Segoe UI", Font.BOLD, 24)); // Tăng size chữ một chút cho hợp màn hình to
+        welcome.setFont(new Font("Segoe UI", Font.BOLD, 26));
         welcome.setForeground(UITheme.TEXT_PRIMARY);
         panel.add(welcome, gbc);
 
-        // Hint
         gbc.gridy++;
-        gbc.insets = new Insets(0, 0, 20, 0);
+        gbc.insets = new Insets(0, 0, 24, 0);
         JLabel hint = new JLabel("Đăng nhập để tiếp tục quản lý hệ thống");
         hint.setFont(UITheme.FONT_BODY);
         hint.setForeground(UITheme.TEXT_SECONDARY);
         panel.add(hint, gbc);
 
-        // Role toggle (Chia làm 2 cột độc lập để tự dãn rộng đều nhau)
         gbc.gridy++;
         gbc.gridwidth = 1;
-        gbc.weightx = 0.5; // Mỗi nút chiếm 50% độ rộng vùng chứa
-        gbc.insets = new Insets(0, 0, 20, 4); // Nút trái cách nút phải 4px
+        gbc.weightx = 0.5;
+        gbc.insets = new Insets(0, 0, 20, 4);
         btnAdmin = roleToggle("🛡  Quản trị viên");
-        btnAdmin.setPreferredSize(new Dimension(150, 38));
+        btnAdmin.setPreferredSize(new Dimension(150, 40));
         panel.add(btnAdmin, gbc);
 
         gbc.gridx = 1;
-        gbc.insets = new Insets(0, 4, 20, 0); // Nút phải cách nút trái 4px
-        btnStudent = roleToggle("👤  Sinh viên");
-        btnStudent.setPreferredSize(new Dimension(150, 38));
+        gbc.insets = new Insets(0, 4, 20, 0);
+        btnStudent = roleToggle("🎓  Sinh viên");
+        btnStudent.setPreferredSize(new Dimension(150, 40));
         panel.add(btnStudent, gbc);
 
         ButtonGroup bg = new ButtonGroup();
@@ -197,39 +297,30 @@ public class LoginFrame extends JFrame {
         bg.add(btnAdmin);
         bg.add(btnStudent);
 
-        // Cấu hình lại gbc cho các ô nhập liệu chiếm trọn chiều ngang
         gbc.gridx = 0;
         gbc.gridwidth = 2;
         gbc.weightx = 1.0;
 
-        // Username Label
         gbc.gridy++;
         gbc.insets = new Insets(0, 0, 6, 0);
-        JLabel lUser = UITheme.formLabel("Tên đăng nhập");
-        panel.add(lUser, gbc);
+        panel.add(UITheme.formLabel("Tên đăng nhập"), gbc);
 
-        // Username TextField
         gbc.gridy++;
         gbc.insets = new Insets(0, 0, 16, 0);
         tfUser = UITheme.textField("admin hoặc sv001...");
-        tfUser.setPreferredSize(new Dimension(300, 40)); // Đặt chiều cao lý tưởng là 40px, chiều rộng tự dãn
+        tfUser.setPreferredSize(new Dimension(300, 42));
         panel.add(tfUser, gbc);
 
-        // Password Label
         gbc.gridy++;
         gbc.insets = new Insets(0, 0, 6, 0);
-        JLabel lPass = UITheme.formLabel("Mật khẩu");
-        panel.add(lPass, gbc);
+        panel.add(UITheme.formLabel("Mật khẩu"), gbc);
 
-        // Password Field
         gbc.gridy++;
         gbc.insets = new Insets(0, 0, 14, 0);
         pfPass = UITheme.passwordField();
-        pfPass.setPreferredSize(new Dimension(300, 40));
+        pfPass.setPreferredSize(new Dimension(300, 42));
         panel.add(pfPass, gbc);
 
-        // Khối Remember + Forgot (Sử dụng Panel phụ dùng BorderLayout để tự dãn sang 2
-        // đầu biên)
         gbc.gridy++;
         gbc.insets = new Insets(0, 0, 16, 0);
         JPanel rowRemember = new JPanel(new BorderLayout());
@@ -238,16 +329,11 @@ public class LoginFrame extends JFrame {
         cbRemember = new JCheckBox("Hiển thị mật khẩu");
         cbRemember.setFont(UITheme.FONT_SMALL);
         cbRemember.setForeground(UITheme.TEXT_SECONDARY);
-        cbRemember.setBackground(UITheme.WHITE);
-        cbRemember.setFocusPainted(false); // bỏ nét đứt focus
+        cbRemember.setOpaque(false);
+        cbRemember.setFocusPainted(false);
         cbRemember.setSelected(false);
-        cbRemember.addItemListener(e -> {
-            if (e.getStateChange() == ItemEvent.SELECTED) {
-                pfPass.setEchoChar((char) 0); // hiện mật khẩu
-            } else {
-                pfPass.setEchoChar('●'); // ẩn mật khẩu
-            }
-        });
+        cbRemember.addItemListener(e -> pfPass.setEchoChar(
+                e.getStateChange() == ItemEvent.SELECTED ? (char) 0 : '●'));
         rowRemember.add(cbRemember, BorderLayout.WEST);
 
         JLabel lForgot = new JLabel("Quên mật khẩu?");
@@ -264,41 +350,31 @@ public class LoginFrame extends JFrame {
         rowRemember.add(lForgot, BorderLayout.EAST);
         panel.add(rowRemember, gbc);
 
-        // Error label
         gbc.gridy++;
         gbc.insets = new Insets(0, 0, 10, 0);
-        lblError = new JLabel(" "); // dùng space thay vì "" để luôn giữ chiều cao
+        lblError = new JLabel(" ");
         lblError.setFont(UITheme.FONT_SMALL);
         lblError.setForeground(UITheme.DANGER);
-        lblError.setPreferredSize(new Dimension(300, 16)); // cố định chiều cao
-        lblError.setMinimumSize(new Dimension(300, 16)); // không cho co lại
+        lblError.setPreferredSize(new Dimension(300, 16));
         panel.add(lblError, gbc);
 
-        // Login button
         gbc.gridy++;
         gbc.insets = new Insets(0, 0, 10, 0);
         JButton btnLogin = UITheme.primaryBtn("  Đăng nhập  ");
-        btnLogin.setPreferredSize(new Dimension(300, 42));
+        btnLogin.setPreferredSize(new Dimension(300, 44));
         btnLogin.setFont(new Font("Segoe UI", Font.BOLD, 14));
         btnLogin.addActionListener(e -> doLogin());
         panel.add(btnLogin, gbc);
 
-        // Register button
-        // Register button (dùng CardLayout để swap mà không làm layout thay đổi)
         gbc.gridy++;
         gbc.insets = new Insets(0, 0, 10, 0);
-
         JPanel registerCard = new JPanel(new CardLayout());
         registerCard.setOpaque(false);
         registerCard.setPreferredSize(new Dimension(300, 38));
-        registerCard.setMinimumSize(new Dimension(300, 38));
-        registerCard.setMaximumSize(new Dimension(300, 38));
 
-        // Card 1: nút ẩn (placeholder trong suốt)
         JPanel emptyCard = new JPanel();
         emptyCard.setOpaque(false);
 
-        // Card 2: nút đăng ký thật
         btnRegister = UITheme.outlineBtn("  Đăng ký tài khoản  ");
         btnRegister.setPreferredSize(new Dimension(300, 38));
         btnRegister.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -313,13 +389,28 @@ public class LoginFrame extends JFrame {
             boolean isStudent = (e.getStateChange() == ItemEvent.SELECTED);
             ((CardLayout) registerCard.getLayout()).show(registerCard, isStudent ? "VISIBLE" : "HIDDEN");
             lForgot.setVisible(isStudent);
+
+            if (isStudent) {
+                // Mới chuyển sang Sinh viên -> xóa value cũ của Admin
+                tfUser.setText("");
+                pfPass.setText("");
+                lblError.setText(" ");
+                cbRemember.setSelected(false);
+            }
         });
 
-        // Enter key listeners
+        btnAdmin.addItemListener(e -> {
+            if (e.getStateChange() == ItemEvent.SELECTED) {
+                // Mới chuyển sang Quản trị viên -> xóa value cũ của Sinh viên
+                tfUser.setText("");
+                pfPass.setText("");
+                lblError.setText(" ");
+                cbRemember.setSelected(false);
+            }
+        });
+
         pfPass.addActionListener(e -> doLogin());
         tfUser.addActionListener(e -> pfPass.requestFocus());
-
-        return panel;
     }
 
     private JToggleButton roleToggle(String text) {
@@ -353,25 +444,55 @@ public class LoginFrame extends JFrame {
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return btn;
     }
-    private String sha256(String input) {
-    try {
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        byte[] hash = md.digest(input.getBytes("UTF-8"));
 
-        StringBuilder sb = new StringBuilder();
-        for (byte b : hash) {
-            sb.append(String.format("%02x", b));
+    // ── Hàm public để chèn ảnh nền (gọi từ ngoài, ví dụ qua JFileChooser) ──
+    public void setBackgroundImageFile(File file) {
+        try {
+            BufferedImage img = ImageIO.read(file);
+            bgPanel.setImage(img);
+        } catch (Exception ex) {
+            ex.printStackTrace();
         }
-
-        return sb.toString();
-    } catch (Exception e) {
-        return "";
     }
-}
+
+    public void clearBackgroundImage() {
+        bgPanel.setImage(null);
+    }
+
+    public void setBackgroundImageResource(String resourceName) {
+        try {
+            java.net.URL url = getClass().getResource(resourceName);
+            if (url == null) {
+                System.err.println("Không tìm thấy ảnh trong resource: " + resourceName);
+                return;
+            }
+            BufferedImage img = ImageIO.read(url);
+            if (img == null) {
+                System.err.println("ImageIO không đọc được file (file hỏng hoặc sai định dạng thật)");
+                return;
+            }
+            bgPanel.setImage(img);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private String sha256(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(input.getBytes("UTF-8"));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash)
+                sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
 
     private void doLogin() {
-       String u = tfUser.getText().trim();
-       String p = sha256(new String(pfPass.getPassword()).trim());
+        String u = tfUser.getText().trim();
+        String p = sha256(new String(pfPass.getPassword()).trim());
 
         if (u.isEmpty() || p.isEmpty()) {
             lblError.setText("⚠ Vui lòng nhập đầy đủ thông tin đăng nhập.");
@@ -379,18 +500,11 @@ public class LoginFrame extends JFrame {
         }
 
         User user = DatabaseService.getUserByUsername(u);
-        System.out.println("Username: " + u);
-        System.out.println("User object: " + user);
-        if (user != null) {
-        System.out.println("DB Password: " + user.getPassword());
-        System.out.println("Input Password: " + p);
-}
         if (user == null || !user.getPassword().equals(p)) {
-         lblError.setText("✗ Sai tên đăng nhập hoặc mật khẩu. Thử lại.");
-         return;
-}
+            lblError.setText("✗ Sai tên đăng nhập hoặc mật khẩu. Thử lại.");
+            return;
+        }
 
-        // Kiểm tra role đã chọn có khớp với role của user không
         boolean isAdminSelected = btnAdmin.isSelected();
         boolean isStudentSelected = btnStudent.isSelected();
 
@@ -398,14 +512,11 @@ public class LoginFrame extends JFrame {
             lblError.setText("✗ Tài khoản này không phải là Quản trị viên. Vui lòng chọn đúng vai trò.");
             return;
         }
-
         if (isStudentSelected && user.getRole() != User.Role.STUDENT) {
             lblError.setText("✗ Tài khoản này không phải là Sinh viên. Vui lòng chọn đúng vai trò.");
             return;
         }
 
-        // Nếu không chọn role nào (trường hợp hiếm), vẫn cho phép đăng nhập theo role
-        // thực tế
         dispose();
         if (user.getRole() == User.Role.ADMIN) {
             new AdminFrame(user).setVisible(true);
@@ -421,19 +532,16 @@ public class LoginFrame extends JFrame {
         registerWindow.setLocationRelativeTo(this);
         registerWindow.setResizable(true);
 
-        // Lưu tham chiếu đến LoginFrame hiện tại
         JFrame currentLoginFrame = this;
 
         com.sdms.ui.admin.AccountRegister registerPanel = new com.sdms.ui.admin.AccountRegister(() -> {
-            registerWindow.dispose(); // Đóng cửa sổ đăng ký
-            currentLoginFrame.setVisible(true); // Hiện lại login frame cũ
-            currentLoginFrame.toFront(); // Đưa lên trước
+            registerWindow.dispose();
+            currentLoginFrame.setVisible(true);
+            currentLoginFrame.toFront();
         });
 
         registerWindow.add(registerPanel);
         registerWindow.setVisible(true);
-
-        // Ẩn login frame khi đang đăng ký
         setVisible(false);
     }
 
@@ -449,7 +557,7 @@ public class LoginFrame extends JFrame {
         imgLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         int nw = 400;
-        int nh = (int) (400 * 990.0 / 1320.0); // ≈ 300
+        int nh = (int) (400 * 990.0 / 1320.0);
 
         java.net.URL res = getClass().getResource("image.png");
         if (res != null) {
@@ -461,7 +569,6 @@ public class LoginFrame extends JFrame {
                 tracker.waitForAll();
             } catch (InterruptedException ignored) {
             }
-
             imgLabel.setIcon(new ImageIcon(scaled));
             imgLabel.setPreferredSize(new Dimension(nw, nh));
         } else {
@@ -469,7 +576,6 @@ public class LoginFrame extends JFrame {
             imgLabel.setPreferredSize(new Dimension(nw, nh));
         }
 
-        // ── FOOTER ──────────────────────────────────────────────
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 10));
         footer.setBackground(UITheme.WHITE);
         footer.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(0xE5E7EB)));
@@ -484,12 +590,11 @@ public class LoginFrame extends JFrame {
         main.add(footer, BorderLayout.SOUTH);
 
         dialog.setContentPane(main);
-        dialog.setSize(nw + 40, nh + 80); // 440 x 398
+        dialog.setSize(nw + 40, nh + 80);
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
     }
 
-    // ── Icons ─────────────────────────────────────────────────────
     private Icon buildingIcon() {
         return new Icon() {
             public int getIconWidth() {
@@ -536,36 +641,60 @@ public class LoginFrame extends JFrame {
                 Color wA = new Color(255, 255, 255, 30);
                 Color wB = new Color(255, 255, 255, 50);
                 Color win = new Color(255, 255, 255, 70);
-                // main building
                 g2.setColor(wA);
                 g2.fillRoundRect(x + 30, y + 30, 230, 110, 6, 6);
                 g2.setColor(new Color(255, 255, 255, 50));
                 g2.setStroke(new BasicStroke(0.8f));
                 g2.drawRoundRect(x + 30, y + 30, 230, 110, 6, 6);
-                // roof
                 g2.setColor(wB);
                 g2.fillRoundRect(x + 60, y + 12, 170, 22, 4, 4);
-                // windows row 1
                 for (int i = 0; i < 4; i++) {
                     g2.setColor(win);
                     g2.fillRoundRect(x + 46 + i * 54, y + 46, 28, 20, 3, 3);
                 }
-                // windows row 2
                 for (int i = 0; i < 4; i++) {
                     g2.setColor(new Color(255, 255, 255, 40));
                     g2.fillRoundRect(x + 46 + i * 54, y + 76, 28, 20, 3, 3);
                 }
-                // doors
                 g2.setColor(new Color(255, 255, 255, 90));
                 g2.fillRoundRect(x + 126, y + 108, 40, 32, 4, 4);
-                // ground
                 g2.setColor(new Color(255, 255, 255, 30));
                 g2.fillRoundRect(x + 0, y + 140, 300, 8, 4, 4);
-                // sun
                 g2.setColor(new Color(255, 220, 50, 160));
                 g2.fillOval(x + 240, y + 5, 28, 28);
                 g2.dispose();
             }
         };
+    }
+
+    // ── Label có viền/bóng đen để luôn nổi rõ trên mọi nền ảnh ──────────
+    private static class ShadowLabel extends JLabel {
+        ShadowLabel(String text) {
+            super(text);
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            Color fg = getForeground();
+
+            setForeground(new Color(0, 0, 0, 170));
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    if (dx == 0 && dy == 0)
+                        continue;
+                    g2.translate(dx, dy);
+                    super.paintComponent(g2);
+                    g2.translate(-dx, -dy);
+                }
+            }
+
+            setForeground(fg);
+            super.paintComponent(g2);
+
+            g2.dispose();
+        }
     }
 }

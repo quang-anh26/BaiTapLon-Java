@@ -32,19 +32,21 @@ public class RoomPanel extends JPanel {
 
         JPanel left = new JPanel(new BorderLayout(0,2));
         left.setOpaque(false);
-        JLabel title = new JLabel("🚪  Quản lý phòng — Tòa A");
-        title.setFont(UITheme.FONT_H2); title.setForeground(UITheme.TEXT_PRIMARY);
+        JLabel titleLabel = new JLabel("🚪  Quản lý phòng");
+        titleLabel.setFont(UITheme.FONT_H2); titleLabel.setForeground(UITheme.TEXT_PRIMARY);
         JLabel sub = new JLabel("Sơ đồ trực quan vị trí phòng theo tầng");
         sub.setFont(UITheme.FONT_TINY); sub.setForeground(UITheme.TEXT_MUTED);
-        left.add(title, BorderLayout.NORTH);
+        left.add(titleLabel, BorderLayout.NORTH);
         left.add(sub,   BorderLayout.SOUTH);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         right.setOpaque(false);
-        JComboBox<String> cbFloor = UITheme.comboBox(new String[]{"Tòa A","Tòa B","Tòa C","Tòa D"});
-        cbFloor.setPreferredSize(new Dimension(110, 34));
+        JButton btnRefresh = UITheme.outlineBtn("🔄 Làm mới");
+        btnRefresh.addActionListener(e -> applyFilter());
         JButton btnAdd = UITheme.primaryBtn("➕  Thêm phòng");
-        right.add(cbFloor); right.add(btnAdd);
+        btnAdd.addActionListener(e -> showAddRoomDialog());
+        right.add(btnRefresh);
+        right.add(btnAdd);
 
         p.add(left, BorderLayout.WEST);
         p.add(right, BorderLayout.EAST);
@@ -65,7 +67,7 @@ public class RoomPanel extends JPanel {
         cardGrid = new JPanel();
         cardGrid.setOpaque(false);
         cardGrid.setLayout(new BoxLayout(cardGrid, BoxLayout.Y_AXIS));
-        rebuildCards(	DatabaseService.getAllRooms());
+        applyFilter();   // dùng applyFilter() thay vì getAllRooms() thẳng để nhất quán
 
         JScrollPane scroll = new JScrollPane(cardGrid);
         scroll.setBorder(null);
@@ -122,7 +124,7 @@ public class RoomPanel extends JPanel {
         JPanel filters = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         filters.setOpaque(false);
         ButtonGroup filterGroup = new ButtonGroup();
-        String[] filterOpts = {"Tất cả","Còn chỗ","Gần đầy","Đã đầy","Phòng 4 người","Phòng 8 người"};
+        String[] filterOpts = {"Tất cả","Còn chỗ","Gần đầy","Đã đầy","Phòng 4 người","Phòng 6 người"};
         for (String opt : filterOpts) {
             JToggleButton btn = filterBtn(opt);
             if (opt.equals(filterStatus)) {
@@ -192,14 +194,16 @@ public class RoomPanel extends JPanel {
     }
 
     private void applyFilter() {
-        List<Room> filtered = DatabaseService.getAllRooms().stream().filter(r -> switch(filterStatus) {
-            case "Còn chỗ"      -> r.getStatus() == Room.Status.AVAILABLE;
-            case "Gần đầy"      -> r.getStatus() == Room.Status.NEARLY_FULL;
-            case "Đã đầy"       -> r.getStatus() == Room.Status.FULL;
-            case "Phòng 4 người"-> r.getCapacity() == 4;
-            case "Phòng 8 người"-> r.getCapacity() == 8;
-            default             -> true;
-        }).collect(Collectors.toList());
+        List<Room> filtered = DatabaseService.getAllRooms().stream()
+            .filter(r -> switch(filterStatus) {
+                case "Còn chỗ"       -> r.getStatus() == Room.Status.AVAILABLE;
+                case "Gần đầy"       -> r.getStatus() == Room.Status.NEARLY_FULL;
+                case "Đã đầy"        -> r.getStatus() == Room.Status.FULL;
+                case "Phòng 4 người" -> r.getCapacity() == 4;
+                case "Phòng 6 người" -> r.getCapacity() == 6;
+                default              -> true;
+            })
+            .collect(Collectors.toList());
         rebuildCards(filtered);
     }
 
@@ -389,5 +393,74 @@ public class RoomPanel extends JPanel {
             case FULL         -> new Color[]{new Color(0xFEF2F2), new Color(0xEF4444), UITheme.DANGER_TEXT,  UITheme.DANGER};
             case MAINTENANCE  -> new Color[]{UITheme.BG_SECONDARY,UITheme.BORDER,    UITheme.TEXT_MUTED,    UITheme.TEXT_MUTED};
         };
+    }
+
+    /** Dialog thêm phòng mới */
+    private void showAddRoomDialog() {
+        JDialog dlg = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "Thêm phòng mới", true);
+        dlg.setSize(420, 320);
+        dlg.setLocationRelativeTo(this);
+
+        JPanel content = new JPanel(new GridLayout(0, 2, 10, 10));
+        content.setBorder(new EmptyBorder(20, 20, 10, 20));
+        content.setBackground(UITheme.WHITE);
+
+        JTextField tfId       = UITheme.textField("VD: A501");
+        JTextField tfName     = UITheme.textField("VD: Phòng A501");
+        JComboBox<String> cbType = UITheme.comboBox(new String[]{"4 người", "6 người"});
+        JTextField tfFloor    = UITheme.textField("VD: 5");
+        JTextField tfCapacity = UITheme.textField("4");
+
+        content.add(label("Mã phòng *"));   content.add(tfId);
+        content.add(label("Tên phòng *"));  content.add(tfName);
+        content.add(label("Loại phòng"));   content.add(cbType);
+        content.add(label("Tầng *"));       content.add(tfFloor);
+        content.add(label("Sức chứa *"));   content.add(tfCapacity);
+
+        cbType.addActionListener(e ->
+            tfCapacity.setText(cbType.getSelectedIndex() == 0 ? "4" : "6"));
+
+        JButton btnSave   = UITheme.primaryBtn("💾 Lưu");
+        JButton btnCancel = UITheme.outlineBtn("Hủy");
+        btnCancel.addActionListener(e -> dlg.dispose());
+        btnSave.addActionListener(e -> {
+            String id = tfId.getText().trim();
+            String name = tfName.getText().trim();
+            if (id.isEmpty() || name.isEmpty()) {
+                JOptionPane.showMessageDialog(dlg, "⚠ Vui lòng nhập đủ Mã và Tên phòng!", "Lưu ý", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            try {
+                int floor    = Integer.parseInt(tfFloor.getText().trim());
+                int capacity = Integer.parseInt(tfCapacity.getText().trim());
+                Room r = new Room(id, name, cbType.getSelectedItem().toString(), floor, capacity, 0);
+                if (DatabaseService.addRoom(r)) {
+                    JOptionPane.showMessageDialog(dlg, "✅ Đã thêm phòng " + id + " thành công!", "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                    dlg.dispose();
+                    applyFilter();   // reload grid với phòng mới
+                } else {
+                    JOptionPane.showMessageDialog(dlg, "❌ Lưu thất bại! Mã phòng có thể đã tồn tại.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(dlg, "⚠ Tầng và Sức chứa phải là số nguyên!", "Lưu ý", JOptionPane.WARNING_MESSAGE);
+            }
+        });
+
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        btnRow.setBackground(UITheme.WHITE);
+        btnRow.setBorder(new EmptyBorder(0, 0, 12, 12));
+        btnRow.add(btnCancel); btnRow.add(btnSave);
+
+        dlg.setLayout(new BorderLayout());
+        dlg.add(content,  BorderLayout.CENTER);
+        dlg.add(btnRow,   BorderLayout.SOUTH);
+        dlg.setVisible(true);
+    }
+
+    private JLabel label(String text) {
+        JLabel l = new JLabel(text);
+        l.setFont(UITheme.FONT_LABEL);
+        l.setForeground(UITheme.TEXT_SECONDARY);
+        return l;
     }
 }

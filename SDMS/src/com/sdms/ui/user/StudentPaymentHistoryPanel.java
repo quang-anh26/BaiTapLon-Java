@@ -3,7 +3,6 @@ package com.sdms.ui.user;
 import com.sdms.model.Invoice;
 import com.sdms.model.Student;
 import com.sdms.model.User;
-import com.sdms.utils.DataStore;
 import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
@@ -18,12 +17,12 @@ import java.util.stream.Collectors;
 
 /**
  * Panel lịch sử thanh toán của sinh viên.
- * Hiển thị tất cả hóa đơn đã và chưa thanh toán, có thể lọc theo tháng/trạng thái.
+ * Toàn bộ dữ liệu lấy từ DB — không có dữ liệu mẫu cứng.
  */
 public class StudentPaymentHistoryPanel extends JPanel {
 
-    private final User    currentUser;
-    private final Student student;
+    private final User          currentUser;
+    private final Student       student;
     private final List<Invoice> allInvoices = new ArrayList<>();
 
     private DefaultTableModel tableModel;
@@ -54,7 +53,10 @@ public class StudentPaymentHistoryPanel extends JPanel {
             .findFirst().orElse(null);
     }
 
-    /** Nạp hóa đơn từ DataStore + thêm dữ liệu mẫu */
+    /**
+     * Nạp hóa đơn từ DB — không thêm dữ liệu mẫu cứng.
+     * Danh sách tự động có khi admin tạo hóa đơn trong hệ thống.
+     */
     private void loadInvoices() {
         if (student != null) {
             allInvoices.addAll(
@@ -63,20 +65,10 @@ public class StudentPaymentHistoryPanel extends JPanel {
                     .collect(Collectors.toList())
             );
         }
-        // Thêm lịch sử mẫu các tháng trước
-        String sid  = student != null ? student.getId()    : "SV001249";
-        String name = student != null ? student.getFullName() : "Nguyễn Thị Lan Anh";
-        String room = student != null ? student.getRoomId() : "A301";
-
-        allInvoices.add(new Invoice("HD0012", sid, name, room, "05/2026", 850_000, 72_000, 42_000, true));
-        allInvoices.add(new Invoice("HD0009", sid, name, room, "04/2026", 850_000, 68_000, 38_000, true));
-        allInvoices.add(new Invoice("HD0006", sid, name, room, "03/2026", 850_000, 80_000, 44_000, true));
-        allInvoices.add(new Invoice("HD0003", sid, name, room, "02/2026", 850_000, 64_000, 36_000, true));
-        allInvoices.add(new Invoice("HD9901", sid, name, room, "01/2026", 850_000, 76_000, 40_000, true));
-        allInvoices.add(new Invoice("HD9845", sid, name, room, "12/2025", 850_000, 90_000, 50_000, true));
     }
 
-    // ── Header ────────────────────────────────────────────────────
+    // ── Header ───────────────────────────────────────────────────
+
     private JPanel buildHeader() {
         JPanel p = new JPanel(new BorderLayout());
         p.setBackground(UITheme.WHITE);
@@ -102,18 +94,19 @@ public class StudentPaymentHistoryPanel extends JPanel {
         return p;
     }
 
-    // ── Nội dung chính ────────────────────────────────────────────
+    // ── Nội dung chính ───────────────────────────────────────────
+
     private JPanel buildContent() {
         JPanel p = new JPanel(new BorderLayout(0, 12));
         p.setBackground(UITheme.BG_LIGHT);
         p.setBorder(new EmptyBorder(16, 20, 20, 20));
-
         p.add(buildSummaryCards(), BorderLayout.NORTH);
         p.add(buildTableSection(), BorderLayout.CENTER);
         return p;
     }
 
-    // ── 3 card tóm tắt ───────────────────────────────────────────
+    // ── 3 card tóm tắt ─────────────────────────────────────────
+
     private JPanel buildSummaryCards() {
         JPanel row = new JPanel(new GridLayout(1, 3, 12, 0));
         row.setOpaque(false);
@@ -127,22 +120,22 @@ public class StudentPaymentHistoryPanel extends JPanel {
         long countUnpaid = allInvoices.stream().filter(i -> !i.isPaid()).count();
 
         row.add(summaryCard("✅ Đã thanh toán",
-            countPaid + " hóa đơn",
             String.format("%,d đ", totalPaid),
+            countPaid + " hóa đơn",
             UITheme.SUCCESS_TEXT, UITheme.SUCCESS_BG));
         row.add(summaryCard("⏳ Chưa thanh toán",
-            countUnpaid + " hóa đơn",
             String.format("%,d đ", totalUnpaid),
+            countUnpaid + " hóa đơn",
             UITheme.WARNING_TEXT, UITheme.WARNING_BG));
         row.add(summaryCard("📊 Tổng cộng",
-            allInvoices.size() + " hóa đơn",
             String.format("%,d đ", totalPaid + totalUnpaid),
+            allInvoices.size() + " hóa đơn",
             UITheme.PRIMARY, UITheme.PRIMARY_LIGHT));
 
         return row;
     }
 
-    private JPanel summaryCard(String title, String count, String amount,
+    private JPanel summaryCard(String title, String amount, String count,
                                 Color accent, Color bg) {
         JPanel card = new JPanel(new BorderLayout(0, 4));
         card.setBackground(UITheme.WHITE);
@@ -150,7 +143,6 @@ public class StudentPaymentHistoryPanel extends JPanel {
             new LineBorder(UITheme.BORDER, 1, true),
             new EmptyBorder(12, 16, 12, 16)
         ));
-
         JLabel lblTitle  = new JLabel(title);
         lblTitle.setFont(UITheme.FONT_SMALL);
         lblTitle.setForeground(UITheme.TEXT_SECONDARY);
@@ -167,7 +159,8 @@ public class StudentPaymentHistoryPanel extends JPanel {
         return card;
     }
 
-    // ── Section bảng ─────────────────────────────────────────────
+    // ── Bảng danh sách hóa đơn ───────────────────────────────────
+
     private JPanel buildTableSection() {
         JPanel p = new JPanel(new BorderLayout(0, 10));
         p.setBackground(UITheme.WHITE);
@@ -188,13 +181,11 @@ public class StudentPaymentHistoryPanel extends JPanel {
         filters.setOpaque(false);
 
         JComboBox<String> cbStatus = UITheme.comboBox(
-            new String[]{"Tất cả", "Đã thanh toán", "Chưa thanh toán"}
-        );
+            new String[]{"Tất cả", "Đã thanh toán", "Chưa thanh toán"});
         cbStatus.setPreferredSize(new Dimension(160, 34));
 
         JComboBox<String> cbYear = UITheme.comboBox(
-            new String[]{"Tất cả năm", "2026", "2025"}
-        );
+            new String[]{"Tất cả năm", "2026", "2025"});
         cbYear.setPreferredSize(new Dimension(110, 34));
 
         JButton btnExport = UITheme.outlineBtn("📥 Xuất lịch sử");
@@ -233,7 +224,7 @@ public class StudentPaymentHistoryPanel extends JPanel {
         for (int i = 0; i < widths.length; i++)
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
 
-        // Renderer Mã HĐ
+        // Renderer Mã HĐ (xanh + đậm)
         table.getColumnModel().getColumn(0).setCellRenderer((t, v, sel, f, r, c) -> {
             JLabel l = new JLabel(v.toString());
             l.setFont(UITheme.FONT_BOLD);
@@ -244,7 +235,7 @@ public class StudentPaymentHistoryPanel extends JPanel {
             return l;
         });
 
-        // Renderer Tổng cộng
+        // Renderer Tổng cộng (xanh lá)
         table.getColumnModel().getColumn(6).setCellRenderer((t, v, sel, f, r, c) -> {
             JLabel l = new JLabel(v.toString(), SwingConstants.RIGHT);
             l.setFont(UITheme.FONT_BOLD);
@@ -255,27 +246,27 @@ public class StudentPaymentHistoryPanel extends JPanel {
             return l;
         });
 
-        // Renderer Trạng thái
+        // Renderer Trạng thái (badge màu)
         table.getColumnModel().getColumn(7).setCellRenderer((t, v, sel, f, r, c) -> {
-            String s  = v.toString();
+            String  s  = v.toString();
             boolean ok = s.contains("Đã");
             JLabel lbl = UITheme.badge(s,
-                ok ? UITheme.SUCCESS_BG : UITheme.WARNING_BG,
+                ok ? UITheme.SUCCESS_BG   : UITheme.WARNING_BG,
                 ok ? UITheme.SUCCESS_TEXT : UITheme.WARNING_TEXT);
             lbl.setOpaque(true);
             lbl.setBackground(sel ? UITheme.PRIMARY_LIGHT : UITheme.WHITE);
             return lbl;
         });
 
-        // Lọc sự kiện
+        // Sự kiện lọc
         ActionListener filterAction = e -> {
             String st = (String) cbStatus.getSelectedItem();
             String yr = (String) cbYear.getSelectedItem();
             List<Invoice> filtered = allInvoices.stream()
                 .filter(i -> {
                     boolean ms = "Tất cả".equals(st)
-                        || ("Đã thanh toán".equals(st) && i.isPaid())
-                        || ("Chưa thanh toán".equals(st) && !i.isPaid());
+                        || ("Đã thanh toán".equals(st)    && i.isPaid())
+                        || ("Chưa thanh toán".equals(st)  && !i.isPaid());
                     boolean my = "Tất cả năm".equals(yr)
                         || i.getMonth().endsWith(yr);
                     return ms && my;
@@ -296,14 +287,13 @@ public class StudentPaymentHistoryPanel extends JPanel {
         JScrollPane scroll = new JScrollPane(table);
         scroll.setBorder(BorderFactory.createLineBorder(UITheme.BORDER, 1));
 
-        // Ghi chú cuối
         lblSummary = new JLabel("  Nhấp đúp vào hóa đơn để xem chi tiết.");
         lblSummary.setFont(UITheme.FONT_TINY);
         lblSummary.setForeground(UITheme.TEXT_MUTED);
 
-        p.add(toolbar,     BorderLayout.NORTH);
-        p.add(scroll,      BorderLayout.CENTER);
-        p.add(lblSummary,  BorderLayout.SOUTH);
+        p.add(toolbar,    BorderLayout.NORTH);
+        p.add(scroll,     BorderLayout.CENTER);
+        p.add(lblSummary, BorderLayout.SOUTH);
         return p;
     }
 
@@ -323,14 +313,14 @@ public class StudentPaymentHistoryPanel extends JPanel {
         JPanel detail = new JPanel(new GridLayout(0, 2, 8, 10));
         detail.setBorder(new EmptyBorder(10, 10, 10, 10));
         String[][] rows = {
-            {"Mã hóa đơn:",   inv.getId()},
-            {"Tháng:",         "Tháng " + inv.getMonth()},
-            {"Phòng:",         inv.getRoomId()},
-            {"Tiền phòng:",    String.format("%,d đ", inv.getRoomFee())},
-            {"Tiền điện:",     String.format("%,d đ", inv.getElectricFee())},
-            {"Tiền nước:",     String.format("%,d đ", inv.getWaterFee())},
-            {"Tổng cộng:",     String.format("%,d đ", inv.getTotal())},
-            {"Trạng thái:",    inv.isPaid() ? "✅ Đã thanh toán" : "⏳ Chưa thanh toán"},
+            {"Mã hóa đơn:",  inv.getId()},
+            {"Tháng:",        "Tháng " + inv.getMonth()},
+            {"Phòng:",        inv.getRoomId()},
+            {"Tiền phòng:",   String.format("%,d đ", inv.getRoomFee())},
+            {"Tiền điện:",    String.format("%,d đ", inv.getElectricFee())},
+            {"Tiền nước:",    String.format("%,d đ", inv.getWaterFee())},
+            {"Tổng cộng:",    String.format("%,d đ", inv.getTotal())},
+            {"Trạng thái:",   inv.isPaid() ? "✅ Đã thanh toán" : "⏳ Chưa thanh toán"},
         };
         for (String[] r : rows) {
             JLabel k = new JLabel(r[0]);
@@ -341,7 +331,6 @@ public class StudentPaymentHistoryPanel extends JPanel {
             v.setForeground(UITheme.TEXT_PRIMARY);
             detail.add(k); detail.add(v);
         }
-
         JOptionPane.showMessageDialog(this, detail,
             "Chi tiết hóa đơn — " + inv.getId(),
             JOptionPane.INFORMATION_MESSAGE);

@@ -334,38 +334,156 @@ private void approveSelected() {
         return;
     }
 
-    int r = JOptionPane.showConfirmDialog(
-            this,
-            "<html>Xác nhận <b>DUYỆT</b> tài khoản:<br>"
-            + "Họ tên: <b>" + a.getFullName() + "</b><br>"
-            + "Tên đăng nhập: <b>" + a.getUsername() + "</b></html>",
-            "Xác nhận duyệt",
-            JOptionPane.YES_NO_OPTION);
+    // Dialog nhập thông tin còn thiếu
+    JTextField tfEmail    = new JTextField(20);
+    JTextField tfFaculty  = new JTextField(20);
+    JTextField tfClass    = new JTextField(10);
+    JTextField tfAddress  = new JTextField(20);
 
-    if (r != JOptionPane.YES_OPTION)
-        return;
+    // Phòng: chọn từ danh sách thật trong DB (kèm số chỗ còn trống) để tránh nhập sai mã phòng
+    List<com.sdms.model.Room> allRooms = DatabaseService.getAllRooms();
+    List<String> roomOptions = new ArrayList<>();
+    roomOptions.add(""); // cho phép để trống — chưa gán phòng
+    for (com.sdms.model.Room rm : allRooms) {
+        roomOptions.add(rm.getId() + "  (" + rm.getOccupied() + "/" + rm.getCapacity() + ")");
+    }
+    JComboBox<String> cbRoom = new JComboBox<>(roomOptions.toArray(new String[0]));
 
-    // cập nhật trạng thái
-    a.setStatus(PendingAccount.Status.APPROVED);
+    JPanel dlg = new JPanel(new java.awt.GridLayout(0, 2, 6, 6));
+    dlg.setBorder(javax.swing.BorderFactory.createEmptyBorder(8,8,8,8));
+    dlg.add(new JLabel("Họ tên:")); dlg.add(new JLabel(a.getFullName()));
+    dlg.add(new JLabel("Ngày sinh:")); dlg.add(new JLabel(a.getDob()));
+    dlg.add(new JLabel("Giới tính:")); dlg.add(new JLabel(a.getGender()));
+    dlg.add(new JLabel("CCCD:")); dlg.add(new JLabel(a.getCccd()));
+    dlg.add(new JLabel("SĐT:")); dlg.add(new JLabel(a.getPhone()));
+    dlg.add(new JLabel("Email *:")); dlg.add(tfEmail);
+    dlg.add(new JLabel("Khoa *:")); dlg.add(tfFaculty);
+    dlg.add(new JLabel("Lớp:")); dlg.add(tfClass);
+    dlg.add(new JLabel("Địa chỉ:")); dlg.add(tfAddress);
+    dlg.add(new JLabel("Phòng:")); dlg.add(cbRoom);
 
-    DatabaseService.updatePendingAccountStatus(
-            a.getId(),
-            "Đã duyệt",
-            ""
+    // Validate + lấy mã phòng đã chọn (vòng lặp cho tới khi hợp lệ hoặc người dùng bấm Cancel)
+    String chosenRoomId = askApprovalDetails(dlg, tfEmail, tfFaculty, cbRoom, allRooms);
+    if (chosenRoomId == null) return; // người dùng bấm Cancel hoặc đóng dialog
+
+    // Tạo Student từ thông tin PendingAccount + form
+    String studentId = DatabaseService.nextStudentId();
+    String faculty   = tfFaculty.getText().trim();
+    String email     = tfEmail.getText().trim();
+    String clazz     = tfClass.getText().trim();
+    String address   = tfAddress.getText().trim();
+
+    com.sdms.model.Student student = new com.sdms.model.Student(
+        studentId, a.getFullName(), a.getDob(),
+        a.getGender(), a.getCccd(),
+        a.getPhone(), email,
+        "", faculty,
+        clazz, address,
+        chosenRoomId, "Đang ở"
     );
 
-   
-   String passwordHash = a.getPassword();  // lấy hash đã lưu từ lúc đăng ký
+    boolean studentAdded = DatabaseService.addStudent(student);
+    if (!studentAdded) {
+        showToast("Tạo hồ sơ sinh viên thất bại! Kiểm tra kết nối database.", false);
+        return;
+    }
 
-   DatabaseService.addUser(
-        a.getUsername(),
-        passwordHash,
-        "STUDENT",
-        a.getFullName(),
-        null
-);
-   showToast("Đã duyệt tài khoản: " + a.getFullName()
-        + "\nSinh viên dùng mật khẩu đã đăng ký để đăng nhập.", true);
+    // Cập nhật số người trong phòng được gán (nếu có)
+    com.sdms.model.Room assignedRoom = null;
+    if (!chosenRoomId.isEmpty()) {
+        assignedRoom = allRooms.stream()
+            .filter(r -> r.getId().equals(chosenRoomId)).findFirst().orElse(null);
+        if (assignedRoom != null)
+            DatabaseService.updateRoomOccupied(chosenRoomId, assignedRoom.getOccupied() + 1);
+    }
+
+    // Tự động tạo Hợp đồng nếu sinh viên đã được gán phòng
+    String contractInfo = "";
+    if (assignedRoom != null) {
+        long monthlyFee = roomMonthlyFee(assignedRoom.getCapacity());
+        java.time.LocalDate startDate = java.time.LocalDate.now();
+        java.time.LocalDate endDate   = startDate.plusYears(1);
+
+        com.sdms.model.Contract contract = new com.sdms.model.Contract(
+            DatabaseService.nextContractId(),
+            studentId, a.getFullName(), chosenRoomId,
+            startDate, endDate, monthlyFee,
+            "Tự động tạo khi duyệt tài khoản",
+            com.sdms.model.Contract.Status.ACTIVE
+        );
+        if (DatabaseService.addContract(contract)) {
+            contractInfo = "\n📄 Đã tạo hợp đồng " + contract.getId() + " (hiệu lực đến " + contract.getEndDateStr() + ").";
+        } else {
+            contractInfo = "\n⚠ Tạo hợp đồng tự động thất bại, vui lòng tạo thủ công ở Quản lý hợp đồng.";
+        }
+    }
+
+    // Cập nhật trạng thái đơn
+    a.setStatus(PendingAccount.Status.APPROVED);
+    DatabaseService.updatePendingAccountStatus(a.getId(), "Đã duyệt", "");
+
+    // Tạo tài khoản đăng nhập
+    DatabaseService.addUser(a.getUsername(), a.getPassword(), "STUDENT", a.getFullName(), studentId);
+
+    refreshTable();
+    showToast("✅ Đã duyệt! Sinh viên " + a.getFullName() + " (mã " + studentId + ") đã được thêm vào hệ thống." + contractInfo, true);
+}
+
+/**
+ * Lấy tiền phòng/tháng theo sức chứa phòng, dựa trên đơn giá đã cấu hình ở Cài đặt hệ thống
+ * (room_fee_4 / room_fee_6). Sức chứa khác sẽ rơi về mặc định room_fee_4 nếu không khớp.
+ */
+private long roomMonthlyFee(int capacity) {
+    String key = (capacity >= 6) ? "room_fee_6" : "room_fee_4";
+    String raw = DatabaseService.getSetting(key);
+    try {
+        return raw == null || raw.trim().isEmpty() ? 0L : Long.parseLong(raw.trim());
+    } catch (NumberFormatException e) {
+        return 0L;
+    }
+}
+
+/**
+ * Hiện dialog xác nhận, validate Email/Khoa bắt buộc và kiểm tra phòng đã đầy chưa.
+ * Lặp lại dialog cho tới khi dữ liệu hợp lệ hoặc người dùng hủy.
+ * @return mã phòng đã chọn (chuỗi rỗng nếu không gán phòng), hoặc null nếu người dùng hủy.
+ */
+private String askApprovalDetails(JPanel dlg, JTextField tfEmail, JTextField tfFaculty,
+                                   JComboBox<String> cbRoom, List<com.sdms.model.Room> allRooms) {
+    while (true) {
+        int confirm = JOptionPane.showConfirmDialog(this, dlg,
+            "Duyệt tài khoản — Nhập thông tin còn thiếu",
+            JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+        if (confirm != JOptionPane.OK_OPTION) return null;
+
+        if (tfEmail.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "⚠ Vui lòng nhập Email!", "Thiếu thông tin", JOptionPane.WARNING_MESSAGE);
+            continue;
+        }
+        if (tfFaculty.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "⚠ Vui lòng nhập Khoa!", "Thiếu thông tin", JOptionPane.WARNING_MESSAGE);
+            continue;
+        }
+
+        // Tách mã phòng khỏi chuỗi hiển thị dạng "P101  (3/4)"
+        String roomSelection = (String) cbRoom.getSelectedItem();
+        String parsedRoomId = (roomSelection == null || roomSelection.trim().isEmpty())
+            ? "" : roomSelection.trim().split("\\s+")[0];
+
+        // Kiểm tra phòng đã đầy chưa trước khi gán
+        if (!parsedRoomId.isEmpty()) {
+            com.sdms.model.Room selectedRoom = allRooms.stream()
+                .filter(r -> r.getId().equals(parsedRoomId)).findFirst().orElse(null);
+            if (selectedRoom != null && selectedRoom.getOccupied() >= selectedRoom.getCapacity()) {
+                JOptionPane.showMessageDialog(this,
+                    "⚠ Phòng " + parsedRoomId + " đã đầy (" + selectedRoom.getOccupied() + "/" + selectedRoom.getCapacity() + " người)!\nVui lòng chọn phòng khác.",
+                    "Phòng đã đầy", JOptionPane.WARNING_MESSAGE);
+                continue;
+            }
+        }
+        return parsedRoomId;
+    }
 }
 
     private void rejectSelected() {

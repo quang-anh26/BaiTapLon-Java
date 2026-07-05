@@ -1,40 +1,47 @@
 package com.sdms.ui.user;
 
 import com.sdms.model.*;
-import com.sdms.utils.DataStore;
 import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
 import javax.swing.border.*;
 import java.awt.*;
-import java.awt.geom.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * Trang chủ của cổng sinh viên (Student Dashboard).
- * Hiển thị: Chào mừng | Thông tin tóm tắt | Hóa đơn tháng | Thông báo mới nhất.
+ * Trang chủ sinh viên (Student Dashboard).
+ * - Thông báo: lấy từ DB (khi admin tạo vi phạm / hóa đơn), không dùng mẫu cứng.
+ * - Card Hợp đồng: có vòng tròn % hiệu lực.
+ * - Card Hóa đơn: chỉ hiển thị tháng + tổng tiền; nút bấm chuyển sang trang Hóa đơn.
  */
 public class StudentDashboardPanel extends JPanel {
 
-    private final User    currentUser;
-    private final Student student;    // Thông tin sinh viên đăng nhập
-    private final Room    room;       // Phòng đang ở
-    private final Invoice latestInvoice; // Hóa đơn mới nhất
+    private final User     currentUser;
+    private final Student  student;
+    private final Room     room;
+    private final Invoice  latestInvoice;
+    private final Contract activeContract;
+    private final long     violationCount;
 
-    /** Callback để điều hướng sang trang Thông báo khi bấm "Xem tất cả" */
+    /** Callback sang trang Thông báo */
     private Runnable onViewAllNotifications;
+    /** Callback sang trang Hóa đơn */
+    private Runnable onNavigateToInvoice;
 
     private static final DateTimeFormatter DATE_FMT =
         DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     public StudentDashboardPanel(User currentUser) {
-        this.currentUser   = currentUser;
-        this.student       = findStudent();
-        this.room          = findRoom();
-        this.latestInvoice = findLatestInvoice();
+        this.currentUser    = currentUser;
+        this.student        = findStudent();
+        this.room           = findRoom();
+        this.latestInvoice  = findLatestInvoice();
+        this.activeContract = findActiveContract();
+        this.violationCount = countViolations();
 
         setBackground(UITheme.BG_LIGHT);
         setLayout(new BorderLayout());
@@ -46,39 +53,48 @@ public class StudentDashboardPanel extends JPanel {
         add(scroll, BorderLayout.CENTER);
     }
 
-    /** Đặt callback khi sinh viên bấm "Xem tất cả thông báo" */
-    public void setOnViewAllNotifications(Runnable callback) {
-        this.onViewAllNotifications = callback;
-    }
+    public void setOnViewAllNotifications(Runnable cb) { this.onViewAllNotifications = cb; }
+    public void setOnNavigateToInvoice(Runnable cb)    { this.onNavigateToInvoice    = cb; }
 
-    // ── Tìm thông tin sinh viên từ DataStore ─────────────────────
+    // ── Tìm dữ liệu từ DB ────────────────────────────────────────
+
     private Student findStudent() {
         String sid = currentUser.getStudentId();
-        if (sid == null) return null;
+        if (sid == null || sid.isEmpty()) return null;
         return DatabaseService.getAllStudents().stream()
             .filter(s -> s.getId().equals(sid))
             .findFirst().orElse(null);
     }
 
-    // ── Tìm phòng của sinh viên ───────────────────────────────────
     private Room findRoom() {
-        if (student == null || student.getRoomId().isEmpty()) return null;
+        // ✅ FIX: thêm null check cho getRoomId() tránh NullPointerException
+        if (student == null || student.getRoomId() == null || student.getRoomId().isEmpty()) return null;
         return DatabaseService.getAllRooms().stream()
             .filter(r -> r.getId().equals(student.getRoomId()))
             .findFirst().orElse(null);
     }
 
-    // ── Tìm hóa đơn mới nhất của sinh viên ───────────────────────
     private Invoice findLatestInvoice() {
         if (student == null) return null;
-        List<Invoice> invoices = DatabaseService.getAllInvoices();
-        return invoices.stream()
-            .filter(i -> i.getStudentId().equals(student.getId()))
-            .reduce((a, b) -> b) // lấy cuối cùng
-            .orElse(null);
+        List<Invoice> invoices = DatabaseService.getInvoicesByStudent(student.getId());
+        return invoices.stream().filter(i -> !i.isPaid()).findFirst()
+            .orElse(invoices.isEmpty() ? null : invoices.get(0));
     }
 
-    // ── Nội dung chính ────────────────────────────────────────────
+    private Contract findActiveContract() {
+        if (student == null) return null;
+        return DatabaseService.getContractsByStudent(student.getId()).stream()
+            .filter(c -> c.getStatus() == Contract.Status.ACTIVE)
+            .findFirst().orElse(null);
+    }
+
+    private long countViolations() {
+        if (student == null) return 0;
+        return DatabaseService.getViolationsByStudent(student.getId()).size();
+    }
+
+    // ── Nội dung chính ───────────────────────────────────────────
+
     private JPanel buildContent() {
         JPanel p = new JPanel();
         p.setBackground(UITheme.BG_LIGHT);
@@ -94,21 +110,18 @@ public class StudentDashboardPanel extends JPanel {
         return p;
     }
 
-    // ── Banner chào mừng ──────────────────────────────────────────
+    // ── Banner chào mừng ─────────────────────────────────────────
+
     private JPanel buildWelcomeBanner() {
         JPanel banner = new JPanel(new BorderLayout(0, 0)) {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                     RenderingHints.VALUE_ANTIALIAS_ON);
-                // Gradient nền từ PRIMARY → PURPLE
-                GradientPaint gp = new GradientPaint(
+                g2.setPaint(new GradientPaint(
                     0, 0, UITheme.PRIMARY,
-                    getWidth(), getHeight(), UITheme.PURPLE
-                );
-                g2.setPaint(gp);
+                    getWidth(), getHeight(), UITheme.PURPLE));
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 14, 14);
-                // Vòng trang trí mờ
                 g2.setColor(new Color(255, 255, 255, 18));
                 g2.fillOval(getWidth() - 140, -40, 200, 200);
                 g2.fillOval(getWidth() - 60, getHeight() - 60, 100, 100);
@@ -120,7 +133,6 @@ public class StudentDashboardPanel extends JPanel {
         banner.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
         banner.setAlignmentX(LEFT_ALIGNMENT);
 
-        // Nội dung bên trái
         String name  = student != null ? student.getFullName() : currentUser.getFullName();
         String greet = getGreeting();
 
@@ -147,7 +159,6 @@ public class StudentDashboardPanel extends JPanel {
         left.add(lblDate);
         left.add(lblRoom);
 
-        // Mã SV + trạng thái bên phải
         JPanel right = new JPanel(new BorderLayout(0, 6));
         right.setOpaque(false);
 
@@ -158,7 +169,7 @@ public class StudentDashboardPanel extends JPanel {
 
         String statusText = student != null ? student.getStatus() : "—";
         JLabel lblStatus = UITheme.badge("● " + statusText,
-            new Color(255,255,255,40), Color.WHITE);
+            new Color(255, 255, 255, 40), Color.WHITE);
         lblStatus.setHorizontalAlignment(SwingConstants.CENTER);
 
         right.add(lblId,     BorderLayout.NORTH);
@@ -170,44 +181,106 @@ public class StudentDashboardPanel extends JPanel {
     }
 
     // ── 4 Card tóm tắt ───────────────────────────────────────────
+
     private JPanel buildSummaryCards() {
         JPanel row = new JPanel(new GridLayout(1, 4, 14, 0));
         row.setOpaque(false);
         row.setAlignmentX(LEFT_ALIGNMENT);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
 
-        // Card 1: Hóa đơn tháng này
+        // Card 1: Hóa đơn
         long total = latestInvoice != null ? latestInvoice.getTotal() : 0;
         boolean paid = latestInvoice != null && latestInvoice.isPaid();
         row.add(summaryCard("🧾 Hóa đơn tháng này",
-            String.format("%,d đ", total),
-            paid ? "✅ Đã thanh toán" : "⏳ Chưa thanh toán",
+            latestInvoice != null ? String.format("%,d đ", total) : "—",
+            paid ? "✅ Đã thanh toán" : (latestInvoice == null ? "Không có hóa đơn" : "⏳ Chưa thanh toán"),
             paid ? UITheme.SUCCESS_TEXT : UITheme.WARNING_TEXT,
             paid ? UITheme.SUCCESS_BG   : UITheme.WARNING_BG));
 
-        // Card 2: Phòng đang ở
-        String roomId   = room != null ? room.getId() : "—";
+        // Card 2: Phòng
+        String roomId   = room != null ? room.getId()   : "—";
         String roomType = room != null ? room.getType() : "Chưa có phòng";
-        row.add(summaryCard("🛏 Phòng đang ở",
-            roomId, roomType,
+        row.add(summaryCard("🛏 Phòng đang ở", roomId, roomType,
             UITheme.PRIMARY, UITheme.PRIMARY_LIGHT));
 
-        // Card 3: Hợp đồng
-        row.add(summaryCard("📄 Hợp đồng",
-            "Còn hiệu lực",
-            "Hết hạn: 31/08/2026",
-            UITheme.SUCCESS_TEXT, UITheme.SUCCESS_BG));
+        // Card 3: Hợp đồng (có vòng tròn %)
+        row.add(buildContractCard());
 
         // Card 4: Vi phạm
         row.add(summaryCard("⚠ Vi phạm",
-            "0 lần",
-            "Trong học kỳ này",
-            UITheme.TEXT_SECONDARY, UITheme.BG_SECONDARY));
+            violationCount + " lần", "Trong học kỳ này",
+            violationCount > 0 ? UITheme.DANGER      : UITheme.TEXT_SECONDARY,
+            violationCount > 0 ? UITheme.DANGER_BG   : UITheme.BG_SECONDARY));
 
         return row;
     }
 
-    /** Card tóm tắt nhỏ */
+    /** Card hợp đồng với vòng tròn % thời gian đã ở */
+    private JPanel buildContractCard() {
+        boolean hasContract = activeContract != null;
+        int     percent     = hasContract ? activeContract.getElapsedPercent() : 0;
+        String  valueText   = hasContract ? "Còn hiệu lực" : "Không có";
+        String  subText     = hasContract ? "Hết hạn: " + activeContract.getEndDateStr() : "Liên hệ BQL";
+        Color   accent      = hasContract ? UITheme.SUCCESS_TEXT : UITheme.WARNING_TEXT;
+        Color   bg          = hasContract ? UITheme.SUCCESS_BG   : UITheme.WARNING_BG;
+
+        JPanel card = new JPanel(new BorderLayout(0, 6));
+        card.setBackground(UITheme.WHITE);
+        card.setBorder(new CompoundBorder(
+            new LineBorder(UITheme.BORDER, 1, true),
+            new EmptyBorder(14, 16, 14, 16)
+        ));
+
+        JLabel lblTitle = new JLabel("📄 Hợp đồng");
+        lblTitle.setFont(UITheme.FONT_SMALL);
+        lblTitle.setForeground(UITheme.TEXT_SECONDARY);
+
+        JPanel centerRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        centerRow.setOpaque(false);
+
+        final int   fp = percent;
+        final Color fa = accent;
+        JPanel circle = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+                int w = getWidth(), h = getHeight(), pad = 4;
+                g2.setColor(new Color(220, 220, 220));
+                g2.setStroke(new BasicStroke(5, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g2.drawArc(pad, pad, w - 2 * pad, h - 2 * pad, 0, 360);
+                g2.setColor(fa);
+                int sweep = (int) (fp * 360 / 100.0);
+                g2.drawArc(pad, pad, w - 2 * pad, h - 2 * pad, 90, -sweep);
+                g2.setFont(new Font("Segoe UI", Font.BOLD, 10));
+                g2.setColor(fa);
+                String txt = fp + "%";
+                FontMetrics fm = g2.getFontMetrics();
+                g2.drawString(txt,
+                    (w - fm.stringWidth(txt)) / 2,
+                    (h + fm.getAscent() - fm.getDescent()) / 2);
+                g2.dispose();
+            }
+            @Override public Dimension getPreferredSize() { return new Dimension(46, 46); }
+        };
+        circle.setOpaque(false);
+
+        JLabel lblValue = new JLabel(valueText);
+        lblValue.setFont(UITheme.FONT_H2);
+        lblValue.setForeground(accent);
+
+        centerRow.add(circle);
+        centerRow.add(lblValue);
+
+        JLabel lblSub = UITheme.badge(subText, bg, accent);
+
+        card.add(lblTitle,  BorderLayout.NORTH);
+        card.add(centerRow, BorderLayout.CENTER);
+        card.add(lblSub,    BorderLayout.SOUTH);
+        return card;
+    }
+
+    /** Card tóm tắt thông thường (không có vòng tròn) */
     private JPanel summaryCard(String title, String value, String sub,
                                 Color accent, Color bg) {
         JPanel card = new JPanel(new BorderLayout(0, 6));
@@ -216,7 +289,6 @@ public class StudentDashboardPanel extends JPanel {
             new LineBorder(UITheme.BORDER, 1, true),
             new EmptyBorder(14, 16, 14, 16)
         ));
-
         JLabel lblTitle = new JLabel(title);
         lblTitle.setFont(UITheme.FONT_SMALL);
         lblTitle.setForeground(UITheme.TEXT_SECONDARY);
@@ -233,104 +305,75 @@ public class StudentDashboardPanel extends JPanel {
         return card;
     }
 
-    // ── Hàng dưới: Hóa đơn + Thông báo ──────────────────────────
+    // ── Hàng dưới: Hóa đơn + Thông báo ─────────────────────────
+
     private JPanel buildBottomRow() {
         JPanel row = new JPanel(new GridLayout(1, 2, 16, 0));
         row.setOpaque(false);
         row.setAlignmentX(LEFT_ALIGNMENT);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 9999));
-
         row.add(buildInvoiceCard());
         row.add(buildNotificationCard());
         return row;
     }
 
-    // ── Card hóa đơn chi tiết ─────────────────────────────────────
     private JPanel buildInvoiceCard() {
-        JPanel card = new JPanel(new BorderLayout(0, 12));
+        JPanel card = new JPanel(new BorderLayout(0, 14));
         card.setBackground(UITheme.WHITE);
         card.setBorder(new CompoundBorder(
             new LineBorder(UITheme.BORDER, 1, true),
             new EmptyBorder(16, 18, 16, 18)
         ));
 
-        // Header card
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
         JLabel title = new JLabel("🧾 Hóa đơn tháng hiện tại");
         title.setFont(UITheme.FONT_LABEL);
         title.setForeground(UITheme.TEXT_PRIMARY);
-
-        String month = latestInvoice != null ? latestInvoice.getMonth() : "06/2026";
-        JLabel lblMonth = UITheme.badge("Tháng " + month,
-            UITheme.INFO_BG, UITheme.INFO_TEXT);
+        String month = latestInvoice != null ? latestInvoice.getMonth() : "—";
+        JLabel lblMonth = UITheme.badge("Tháng " + month, UITheme.INFO_BG, UITheme.INFO_TEXT);
         header.add(title,    BorderLayout.WEST);
         header.add(lblMonth, BorderLayout.EAST);
 
-        // Nội dung chi tiết
-        JPanel detail = new JPanel(new GridLayout(0, 2, 0, 8));
-        detail.setOpaque(false);
+        long    totalAmt = latestInvoice != null ? latestInvoice.getTotal() : 0;
+        boolean paid     = latestInvoice != null && latestInvoice.isPaid();
 
-        long roomFee  = latestInvoice != null ? latestInvoice.getRoomFee()     : 850_000;
-        long elecFee  = latestInvoice != null ? latestInvoice.getElectricFee() : 76_000;
-        long waterFee = latestInvoice != null ? latestInvoice.getWaterFee()    : 0;
-        long total    = latestInvoice != null ? latestInvoice.getTotal()       : 926_000;
-        boolean paid  = latestInvoice != null && latestInvoice.isPaid();
+        JPanel centerPanel = new JPanel(new GridBagLayout());
+        centerPanel.setOpaque(false);
+        centerPanel.setBorder(new EmptyBorder(12, 0, 12, 0));
 
-        addInvoiceRow(detail, "Tiền phòng:",      String.format("%,d đ", roomFee),  false);
-        addInvoiceRow(detail, "Tiền điện:",        String.format("%,d đ", elecFee),  false);
-        addInvoiceRow(detail, "Tiền nước:",        String.format("%,d đ", waterFee), false);
+        JLabel lblTotal = new JLabel(
+            latestInvoice != null ? String.format("%,d đ", totalAmt) : "Không có hóa đơn"
+        );
+        lblTotal.setFont(new Font("Segoe UI", Font.BOLD, 30));
+        lblTotal.setForeground(paid ? UITheme.SUCCESS_TEXT : UITheme.PRIMARY);
+        centerPanel.add(lblTotal);
 
-        // Separator
-        JSeparator sep = new JSeparator();
-        sep.setForeground(UITheme.BORDER);
-
-        addInvoiceRow(detail, "Tổng cộng:",
-            String.format("%,d đ", total), true); // bold
-
-        // Trạng thái + nút thanh toán
         JPanel bottom = new JPanel(new BorderLayout(8, 0));
         bottom.setOpaque(false);
 
         JLabel lblStatus = UITheme.badge(
-            paid ? "✅ Đã thanh toán" : "⏳ Chưa thanh toán",
+            paid ? "✅ Đã thanh toán"
+                 : (latestInvoice == null ? "Không có hóa đơn" : "⏳ Chưa thanh toán"),
             paid ? UITheme.SUCCESS_BG : UITheme.WARNING_BG,
             paid ? UITheme.SUCCESS_TEXT : UITheme.WARNING_TEXT
         );
 
-        JButton btnPay = UITheme.primaryBtn(paid ? "✓ Đã thanh toán" : "💳 Thanh toán ngay");
-        btnPay.setEnabled(!paid);
+        JButton btnPay = UITheme.primaryBtn(paid ? "✓ Xem hóa đơn" : "💳 Thanh toán ngay");
+        btnPay.setEnabled(latestInvoice != null);
         btnPay.addActionListener(e -> {
-            JOptionPane.showMessageDialog(this,
-                "<html>✅ Thanh toán thành công!<br>Số tiền: "
-                + String.format("%,d đ", total) + "</html>",
-                "Thanh toán", JOptionPane.INFORMATION_MESSAGE);
+            if (onNavigateToInvoice != null) onNavigateToInvoice.run();
         });
 
         bottom.add(lblStatus, BorderLayout.WEST);
         bottom.add(btnPay,    BorderLayout.EAST);
 
-        card.add(header, BorderLayout.NORTH);
-        card.add(detail, BorderLayout.CENTER);
-        card.add(bottom, BorderLayout.SOUTH);
+        card.add(header,      BorderLayout.NORTH);
+        card.add(centerPanel, BorderLayout.CENTER);
+        card.add(bottom,      BorderLayout.SOUTH);
         return card;
     }
 
-    /** Thêm một hàng label:value vào panel chi tiết hóa đơn */
-    private void addInvoiceRow(JPanel p, String label, String value, boolean bold) {
-        JLabel lbl = new JLabel(label);
-        lbl.setFont(bold ? UITheme.FONT_BOLD : UITheme.FONT_BODY);
-        lbl.setForeground(bold ? UITheme.TEXT_PRIMARY : UITheme.TEXT_SECONDARY);
-
-        JLabel val = new JLabel(value, SwingConstants.RIGHT);
-        val.setFont(bold ? UITheme.FONT_BOLD : UITheme.FONT_BODY);
-        val.setForeground(bold ? UITheme.PRIMARY : UITheme.TEXT_PRIMARY);
-
-        p.add(lbl);
-        p.add(val);
-    }
-
-    // ── Card thông báo mới nhất ───────────────────────────────────
     private JPanel buildNotificationCard() {
         JPanel card = new JPanel(new BorderLayout(0, 10));
         card.setBackground(UITheme.WHITE);
@@ -344,26 +387,32 @@ public class StudentDashboardPanel extends JPanel {
         title.setForeground(UITheme.TEXT_PRIMARY);
         title.setBorder(new EmptyBorder(0, 0, 4, 0));
 
-        // Danh sách thông báo mẫu
-        Object[][] notices = {
-            {"🔴", "Hóa đơn tháng 06/2026 đã được tạo. Vui lòng thanh toán trước 15/06.",    "1 giờ trước",  true},
-            {"📄", "Hợp đồng thuê phòng của bạn còn 82 ngày. Liên hệ BQL để gia hạn.",        "2 ngày trước", true},
-            {"🔍", "Lịch kiểm tra phòng định kỳ: 10/06/2026 lúc 09:00.",                      "3 ngày trước", false},
-            {"🔵", "Nhắc nhở: Tổng vệ sinh khu vực chung vào thứ 7 tuần này.",                "5 ngày trước", false},
-        };
+        String sid    = student != null ? student.getId()     : "";
+        String roomId = student != null ? student.getRoomId() : "";
+        List<Notification> dbNotices = sid.isEmpty()
+            ? java.util.Collections.emptyList()
+            : DatabaseService.getNotificationsForStudent(sid, roomId)
+                .stream().limit(4).collect(Collectors.toList());
 
         JPanel listPanel = new JPanel();
         listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
         listPanel.setOpaque(false);
 
-        for (Object[] n : notices) {
-            listPanel.add(noticeItem(
-                (String)  n[0],
-                (String)  n[1],
-                (String)  n[2],
-                (Boolean) n[3]
-            ));
-            listPanel.add(Box.createVerticalStrut(6));
+        if (dbNotices.isEmpty()) {
+            JLabel empty = new JLabel("Chưa có thông báo nào.");
+            empty.setFont(UITheme.FONT_BODY);
+            empty.setForeground(UITheme.TEXT_MUTED);
+            listPanel.add(empty);
+        } else {
+            for (Notification n : dbNotices) {
+                listPanel.add(noticeItem(
+                    n.getTypeIcon(),
+                    n.getTitle(),
+                    n.getRelativeTime(),
+                    !n.isRead()
+                ));
+                listPanel.add(Box.createVerticalStrut(6));
+            }
         }
 
         JButton btnAll = UITheme.outlineBtn("Xem tất cả thông báo →");
@@ -411,7 +460,6 @@ public class StudentDashboardPanel extends JPanel {
 
     // ── Tiện ích ─────────────────────────────────────────────────
 
-    /** Lời chào theo giờ hiện tại */
     private String getGreeting() {
         int hour = java.time.LocalTime.now().getHour();
         if (hour < 12) return "Chào buổi sáng";

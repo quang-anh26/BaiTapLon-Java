@@ -1,11 +1,16 @@
 package com.sdms.ui.admin;
 
+import com.sdms.model.Contract;
+import com.sdms.model.Invoice;
 import com.sdms.model.Utility;
 import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 import java.awt.*;
 import java.awt.event.*;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.swing.*;
@@ -14,7 +19,11 @@ import javax.swing.table.*;
 
 /**
  * Panel quản lý chỉ số điện nước hàng tháng.
- * Hỗ trợ: Thêm, Sửa, Xóa, Tìm kiếm, Lọc theo tháng/phòng, Chốt chỉ số.
+ * Logic nâng cao:
+ *  1. Khi chọn phòng + tháng → tự động điền chỉ số đầu kỳ từ cuối kỳ tháng trước.
+ *  2. Chặn tháng bị "nhảy cóc": phòng phải có dữ liệu liên tiếp (không bỏ tháng giữa).
+ *  3. Khi chốt: chọn từng sinh viên trong phòng → hóa đơn chỉ tạo cho người đó;
+ *     tiền phòng = tổng hợp đồng của tất cả thành viên đang active trong phòng.
  */
 public class UtilityPanel extends JPanel {
 
@@ -41,13 +50,16 @@ public class UtilityPanel extends JPanel {
         "Tổng tiền", "Trạng thái"
     };
 
+    // ── Formatter tháng MM/yyyy ───────────────────────────────────
+    private static final DateTimeFormatter MONTH_FMT =
+        DateTimeFormatter.ofPattern("MM/yyyy");
+
     public UtilityPanel() {
         setBackground(UITheme.BG_LIGHT);
         setLayout(new BorderLayout());
-        utilities.addAll(DatabaseService.getAllUtilities()); // Tải dữ liệu từ database
+        utilities.addAll(DatabaseService.getAllUtilities());
         add(buildHeader(), BorderLayout.NORTH);
 
-        // Fixed layout — form width locked, not draggable
         JPanel center = new JPanel(new BorderLayout());
         center.setBackground(UITheme.BG_LIGHT);
         JPanel formPanel = buildForm();
@@ -67,25 +79,20 @@ public class UtilityPanel extends JPanel {
             new MatteBorder(0, 0, 1, 0, UITheme.BORDER),
             new EmptyBorder(12, 20, 12, 20)
         ));
-
         JLabel title = new JLabel("⚡  Quản lý điện nước");
         title.setFont(UITheme.FONT_H2);
         title.setForeground(UITheme.TEXT_PRIMARY);
-
         JLabel breadcrumb = new JLabel("Dashboard / Quản lý điện nước");
         breadcrumb.setFont(UITheme.FONT_TINY);
         breadcrumb.setForeground(UITheme.TEXT_MUTED);
-
         JPanel left = new JPanel(new BorderLayout(0, 2));
         left.setOpaque(false);
-        left.add(title,     BorderLayout.NORTH);
-        left.add(breadcrumb,BorderLayout.SOUTH);
-
+        left.add(title, BorderLayout.NORTH);
+        left.add(breadcrumb, BorderLayout.SOUTH);
         lblCount = new JLabel("Tổng cộng: " + utilities.size() + " bản ghi");
         lblCount.setFont(UITheme.FONT_SMALL);
         lblCount.setForeground(UITheme.TEXT_SECONDARY);
-
-        p.add(left,     BorderLayout.WEST);
+        p.add(left, BorderLayout.WEST);
         p.add(lblCount, BorderLayout.EAST);
         return p;
     }
@@ -105,14 +112,12 @@ public class UtilityPanel extends JPanel {
         form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
         form.setBorder(new EmptyBorder(14, 14, 14, 14));
 
-        // Tiêu đề form
         JLabel sec = new JLabel("NHẬP CHỈ SỐ ĐIỆN NƯỚC");
         sec.setFont(UITheme.FONT_LABEL);
         sec.setForeground(UITheme.PRIMARY);
         sec.setBorder(new EmptyBorder(0, 0, 10, 0));
         sec.setAlignmentX(LEFT_ALIGNMENT);
 
-        // Khởi tạo trường nhập
         tfId         = UITheme.textField("");
         tfMonth      = UITheme.textField("");
         tfElecPrev   = UITheme.textField("");
@@ -123,20 +128,30 @@ public class UtilityPanel extends JPanel {
         tfWaterPrice = UITheme.textField(String.valueOf(Utility.DEFAULT_WATER_UNIT_PRICE));
         tfNote       = UITheme.textField("");
 
+        // Chỉ số đầu kỳ chỉ đọc — do hệ thống tự điền
+        tfElecPrev.setEditable(false);
+        tfElecPrev.setBackground(new Color(0xF3F4F6));
+        tfWaterPrev.setEditable(false);
+        tfWaterPrev.setBackground(new Color(0xF3F4F6));
+
         String[] roomIds = DatabaseService.getAllRooms().stream()
             .map(r -> r.getId()).toArray(String[]::new);
         cbRoom = UITheme.comboBox(roomIds);
 
         tfId.setText(nextUtilityId());
-        tfElecPrice.setText(String.valueOf(Utility.DEFAULT_ELECTRIC_UNIT_PRICE));
-        tfWaterPrice.setText(String.valueOf(Utility.DEFAULT_WATER_UNIT_PRICE));
+        tfId.setEditable(false);
+        tfId.setBackground(new Color(0xF3F4F6));
+
+        // Khi đổi phòng hoặc nhập tháng → tự điền đầu kỳ
+        cbRoom.addActionListener(e -> onRoomOrMonthChanged());
+        tfMonth.addFocusListener(new FocusAdapter() {
+            @Override public void focusLost(FocusEvent e) { onRoomOrMonthChanged(); }
+        });
 
         KeyAdapter calcPreview = new KeyAdapter() {
             @Override public void keyReleased(KeyEvent e) { updatePreview(); }
         };
-        tfElecPrev.addKeyListener(calcPreview);
         tfElecCurr.addKeyListener(calcPreview);
-        tfWaterPrev.addKeyListener(calcPreview);
         tfWaterCurr.addKeyListener(calcPreview);
         tfElecPrice.addKeyListener(calcPreview);
         tfWaterPrice.addKeyListener(calcPreview);
@@ -145,6 +160,11 @@ public class UtilityPanel extends JPanel {
         JPanel row2 = makeRow1("PHÒNG *", cbRoom);
         JLabel elecSec  = sectionLabel("⚡  ĐIỆN (kWh)");
         JLabel waterSec = sectionLabel("💧  NƯỚC (m³)");
+
+        // Tooltip cho đầu kỳ
+        tfElecPrev.setToolTipText("Tự động lấy từ chỉ số cuối kỳ tháng trước");
+        tfWaterPrev.setToolTipText("Tự động lấy từ chỉ số cuối kỳ tháng trước");
+
         JPanel elecGrid  = makeRow2(makeFieldPanel("CHỈ SỐ ĐẦU KỲ", tfElecPrev),  makeFieldPanel("CHỈ SỐ CUỐI KỲ", tfElecCurr));
         JPanel waterGrid = makeRow2(makeFieldPanel("CHỈ SỐ ĐẦU KỲ", tfWaterPrev), makeFieldPanel("CHỈ SỐ CUỐI KỲ", tfWaterCurr));
         JPanel priceGrid = makeRow2(makeFieldPanel("ĐƠN GIÁ ĐIỆN (đ/kWh)", tfElecPrice), makeFieldPanel("ĐƠN GIÁ NƯỚC (đ/m³)", tfWaterPrice));
@@ -154,17 +174,17 @@ public class UtilityPanel extends JPanel {
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         btnRow.setOpaque(false); btnRow.setAlignmentX(LEFT_ALIGNMENT);
         btnRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        JButton btnAdd    = UITheme.primaryBtn("□ Thêm");
-        JButton btnEdit   = UITheme.warningBtn("□ Sửa");
-        JButton btnDelete = UITheme.dangerBtn("□ Xóa");
-        JButton btnReset  = UITheme.outlineBtn("□ Làm mới");
+        JButton btnAdd    = UITheme.primaryBtn("Thêm");
+        JButton btnEdit   = UITheme.warningBtn("Sửa");
+        JButton btnDelete = UITheme.dangerBtn("Xóa");
+        JButton btnReset  = UITheme.outlineBtn("Làm mới");
         btnRow.add(btnAdd); btnRow.add(btnEdit); btnRow.add(btnDelete); btnRow.add(btnReset);
 
         JPanel btnRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         btnRow2.setOpaque(false); btnRow2.setAlignmentX(LEFT_ALIGNMENT);
         btnRow2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        JButton btnConfirm = UITheme.successBtn("□ Chốt chỉ số");
-        JButton btnExport  = UITheme.purpleBtn("□ Xuất báo cáo");
+        JButton btnConfirm = UITheme.successBtn("Chốt chỉ số");
+        JButton btnExport  = UITheme.purpleBtn("Xuất báo cáo");
         btnRow2.add(btnConfirm); btnRow2.add(btnExport);
 
         btnAdd.addActionListener(e    -> addUtility());
@@ -172,8 +192,7 @@ public class UtilityPanel extends JPanel {
         btnDelete.addActionListener(e -> deleteUtility());
         btnReset.addActionListener(e  -> clearForm());
         btnConfirm.addActionListener(e-> confirmUtility());
-        btnExport.addActionListener(e -> JOptionPane.showMessageDialog(this,
-            "✅ Đã xuất báo cáo điện nước thành công!", "Thông báo", JOptionPane.INFORMATION_MESSAGE));
+        btnExport.addActionListener(e -> exportUtilityReport());
 
         form.add(sec);       form.add(Box.createVerticalStrut(4));
         form.add(row1);      form.add(Box.createVerticalStrut(8));
@@ -196,6 +215,91 @@ public class UtilityPanel extends JPanel {
         return wrapper;
     }
 
+    // ── Logic 1: Tự động điền chỉ số đầu kỳ ─────────────────────
+    /**
+     * Khi chọn phòng hoặc nhập tháng:
+     *  - Lấy bản ghi tháng (month-1) của phòng đó.
+     *  - Điền electricCurr → tfElecPrev, waterCurr → tfWaterPrev.
+     *  - Nếu không có dữ liệu tháng trước → để trống (tháng đầu tiên của phòng).
+     */
+    private void onRoomOrMonthChanged() {
+        String roomId = (String) cbRoom.getSelectedItem();
+        String monthStr = tfMonth.getText().trim();
+        if (roomId == null || monthStr.isEmpty()) return;
+
+        YearMonth selectedMonth;
+        try {
+            selectedMonth = YearMonth.parse(monthStr, MONTH_FMT);
+        } catch (Exception ex) {
+            return; // tháng chưa hợp lệ, không điền
+        }
+
+        YearMonth prevMonth = selectedMonth.minusMonths(1);
+        String prevMonthStr = prevMonth.format(MONTH_FMT);
+
+        // Tìm bản ghi tháng trước của phòng này
+        Utility prev = utilities.stream()
+            .filter(u -> u.getRoomId().equals(roomId) && u.getMonth().equals(prevMonthStr))
+            .findFirst().orElse(null);
+
+        // Nếu không có trong cache → thử DB
+        if (prev == null) {
+            prev = DatabaseService.getUtility(roomId, prevMonthStr);
+        }
+
+        if (prev != null) {
+            tfElecPrev.setText(String.valueOf(prev.getElectricCurr()));
+            tfWaterPrev.setText(String.valueOf(prev.getWaterCurr()));
+        } else {
+            // Tháng đầu tiên của phòng hoặc chưa có dữ liệu → để trống cho nhập tay
+            tfElecPrev.setEditable(true);
+            tfElecPrev.setBackground(UITheme.WHITE);
+            tfWaterPrev.setEditable(true);
+            tfWaterPrev.setBackground(UITheme.WHITE);
+            tfElecPrev.setText("");
+            tfWaterPrev.setText("");
+        }
+        updatePreview();
+    }
+
+    // ── Logic 2: Kiểm tra tháng không được nhảy cóc ──────────────
+    /**
+     * Kiểm tra tháng chọn hợp lệ:
+     *  - Bản ghi phòng đó phải có dữ liệu liên tiếp không gián đoạn.
+     *  - Ví dụ: đã có T2, T3 → T4 hợp lệ; T5 không hợp lệ (bỏ qua T4).
+     *  - Tháng đầu tiên (phòng chưa có bản ghi nào) → luôn hợp lệ.
+     * @return null nếu hợp lệ, chuỗi lỗi nếu không hợp lệ.
+     */
+    private String validateMonthSequence(String roomId, YearMonth targetMonth) {
+        List<YearMonth> existingMonths = utilities.stream()
+            .filter(u -> u.getRoomId().equals(roomId))
+            .filter(u -> !u.equals(editingUtility)) // bỏ qua bản ghi đang sửa
+            .map(u -> {
+                try { return YearMonth.parse(u.getMonth(), MONTH_FMT); }
+                catch (Exception e) { return null; }
+            })
+            .filter(m -> m != null)
+            .sorted()
+            .collect(Collectors.toList());
+
+        if (existingMonths.isEmpty()) return null; // phòng chưa có dữ liệu → OK
+
+        YearMonth latestMonth = existingMonths.get(existingMonths.size() - 1);
+
+        // Kiểm tra tháng đã tồn tại chưa
+        if (existingMonths.contains(targetMonth)) {
+            return "Phòng " + roomId + " đã có dữ liệu tháng " + targetMonth.format(MONTH_FMT) + "!";
+        }
+
+        // Tháng mới phải là tháng kế tiếp của tháng mới nhất
+        if (!targetMonth.equals(latestMonth.plusMonths(1))) {
+            return "Tháng không hợp lệ! Phòng " + roomId + " hiện có dữ liệu đến "
+                + latestMonth.format(MONTH_FMT)
+                + ".\nTháng tiếp theo phải là " + latestMonth.plusMonths(1).format(MONTH_FMT) + ".";
+        }
+        return null;
+    }
+
     // ── Panel preview tính tiền real-time ─────────────────────────
     private JLabel lblPreviewElec, lblPreviewWater, lblPreviewTotal;
 
@@ -204,11 +308,9 @@ public class UtilityPanel extends JPanel {
         p.setAlignmentX(LEFT_ALIGNMENT);
         p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 56));
         p.setOpaque(false);
-
-        lblPreviewElec  = previewChip("Tiền điện", "0 đ", UITheme.WARNING_BG, UITheme.WARNING_TEXT);
-        lblPreviewWater = previewChip("Tiền nước", "0 đ", new Color(0xDBEAFE), UITheme.INFO_TEXT);
+        lblPreviewElec  = previewChip("Tiền điện", "2000 đ", UITheme.WARNING_BG, UITheme.WARNING_TEXT);
+        lblPreviewWater = previewChip("Tiền nước", "6000 đ", new Color(0xDBEAFE), UITheme.INFO_TEXT);
         lblPreviewTotal = previewChip("Tổng tiền", "0 đ", UITheme.SUCCESS_BG, UITheme.SUCCESS_TEXT);
-
         p.add(wrapChip("⚡ Điện", lblPreviewElec));
         p.add(wrapChip("💧 Nước", lblPreviewWater));
         p.add(wrapChip("💰 Tổng", lblPreviewTotal));
@@ -236,20 +338,17 @@ public class UtilityPanel extends JPanel {
         return p;
     }
 
-    /** Cập nhật preview tính tiền khi người dùng nhập */
     private void updatePreview() {
         try {
-            double elecPrev  = parseDouble(tfElecPrev.getText());
-            double elecCurr  = parseDouble(tfElecCurr.getText());
-            double waterPrev = parseDouble(tfWaterPrev.getText());
-            double waterCurr = parseDouble(tfWaterCurr.getText());
-            long   elecPrice = parseLong(tfElecPrice.getText());
-            long   waterPrice= parseLong(tfWaterPrice.getText());
-
+            double elecPrev   = parseDouble(tfElecPrev.getText());
+            double elecCurr   = parseDouble(tfElecCurr.getText());
+            double waterPrev  = parseDouble(tfWaterPrev.getText());
+            double waterCurr  = parseDouble(tfWaterCurr.getText());
+            long   elecPrice  = parseLong(tfElecPrice.getText());
+            long   waterPrice = parseLong(tfWaterPrice.getText());
             long elecFee  = Math.round(Math.max(0, elecCurr - elecPrev) * elecPrice);
             long waterFee = Math.round(Math.max(0, waterCurr - waterPrev) * waterPrice);
             long total    = elecFee + waterFee;
-
             lblPreviewElec.setText(String.format("%,d đ", elecFee));
             lblPreviewWater.setText(String.format("%,d đ", waterFee));
             lblPreviewTotal.setText(String.format("%,d đ", total));
@@ -262,7 +361,6 @@ public class UtilityPanel extends JPanel {
         p.setBackground(UITheme.BG_LIGHT);
         p.setBorder(new EmptyBorder(14, 14, 14, 14));
 
-        // Toolbar
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         toolbar.setOpaque(false);
 
@@ -275,11 +373,11 @@ public class UtilityPanel extends JPanel {
         cbMonthFilter.setPreferredSize(new Dimension(130, 36));
 
         JComboBox<String> cbConfirmFilter = UITheme.comboBox(
-            new String[]{"Tất cả", "Đã chốt", "Chưa chốt"}
+            new String[]{"Tất cả", "✓ Đã chốt", "⏳ Chưa chốt"}
         );
         cbConfirmFilter.setPreferredSize(new Dimension(120, 36));
 
-        JButton btnRefresh = UITheme.outlineBtn("□ Làm mới");
+        JButton btnRefresh = UITheme.outlineBtn("Làm mới");
         btnRefresh.setPreferredSize(new Dimension(100, 36));
 
         toolbar.add(tfSearch);
@@ -287,7 +385,6 @@ public class UtilityPanel extends JPanel {
         toolbar.add(cbConfirmFilter);
         toolbar.add(btnRefresh);
 
-        // Khởi tạo bảng
         tableModel = new DefaultTableModel(null, COLS) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
@@ -307,19 +404,14 @@ public class UtilityPanel extends JPanel {
         table.getTableHeader().setReorderingAllowed(false);
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
-        // Độ rộng cột
         int[] widths = {70, 65, 70, 72, 72, 80, 85, 72, 72, 75, 85, 90, 90};
         for (int i = 0; i < widths.length; i++)
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
 
-        // Renderer cột Mã
         table.getColumnModel().getColumn(0).setCellRenderer(idRenderer());
-        // Renderer cột Tổng tiền — nổi bật
         table.getColumnModel().getColumn(11).setCellRenderer(totalRenderer());
-        // Renderer cột Trạng thái chốt
         table.getColumnModel().getColumn(12).setCellRenderer(confirmRenderer());
 
-        // Click hàng → đổ vào form
         table.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) {
                 int row = table.getSelectedRow();
@@ -327,7 +419,6 @@ public class UtilityPanel extends JPanel {
             }
         });
 
-        // Tìm kiếm real-time
         tfSearch.addKeyListener(new KeyAdapter() {
             @Override public void keyReleased(KeyEvent e) {
                 filterTable(
@@ -337,23 +428,22 @@ public class UtilityPanel extends JPanel {
                 );
             }
         });
-
         cbMonthFilter.addActionListener(e -> filterTable(
             (String) cbMonthFilter.getSelectedItem(),
             (String) cbConfirmFilter.getSelectedItem(),
             tfSearch.getText()
         ));
-
         cbConfirmFilter.addActionListener(e -> filterTable(
             (String) cbMonthFilter.getSelectedItem(),
             (String) cbConfirmFilter.getSelectedItem(),
             tfSearch.getText()
         ));
-
         btnRefresh.addActionListener(e -> {
             tfSearch.setText("");
             cbMonthFilter.setSelectedIndex(0);
             cbConfirmFilter.setSelectedIndex(0);
+            utilities.clear();
+            utilities.addAll(DatabaseService.getAllUtilities());
             refreshTable(utilities);
         });
 
@@ -363,25 +453,21 @@ public class UtilityPanel extends JPanel {
         scroll.getViewport().setBackground(UITheme.WHITE);
         scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 
-        // Thanh tổng kết cuối bảng
         JPanel summaryBar = buildSummaryBar();
 
-        p.add(toolbar,     BorderLayout.NORTH);
-        p.add(scroll,      BorderLayout.CENTER);
-        p.add(summaryBar,  BorderLayout.SOUTH);
+        p.add(toolbar,    BorderLayout.NORTH);
+        p.add(scroll,     BorderLayout.CENTER);
+        p.add(summaryBar, BorderLayout.SOUTH);
         return p;
     }
 
-    /** Thanh tổng kết: tổng tiền điện, nước của tháng hiển thị */
     private JPanel buildSummaryBar() {
         JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 16, 6));
         p.setOpaque(false);
-
         long totalElec  = utilities.stream().mapToLong(Utility::getElectricFee).sum();
         long totalWater = utilities.stream().mapToLong(Utility::getWaterFee).sum();
         long totalAll   = utilities.stream().mapToLong(Utility::getTotalFee).sum();
         long confirmed  = utilities.stream().filter(Utility::isConfirmed).count();
-
         p.add(UITheme.badge("Tổng điện: " + String.format("%,d đ", totalElec),
             UITheme.WARNING_BG, UITheme.WARNING_TEXT));
         p.add(UITheme.badge("Tổng nước: " + String.format("%,d đ", totalWater),
@@ -395,11 +481,29 @@ public class UtilityPanel extends JPanel {
 
     // ── Logic CRUD ────────────────────────────────────────────────
 
-    /** Thêm bản ghi điện nước mới */
     private void addUtility() {
-        if (tfMonth.getText().trim().isEmpty()) {
+        String monthStr = tfMonth.getText().trim();
+        if (monthStr.isEmpty()) {
             showWarn("Vui lòng nhập tháng (VD: 06/2026)!"); return;
         }
+        if (!monthStr.matches("\\d{2}/\\d{4}")) {
+            showWarn("Tháng không đúng định dạng! Vui lòng nhập theo dạng MM/yyyy (VD: 06/2026)."); return;
+        }
+
+        String roomId = (String) cbRoom.getSelectedItem();
+        YearMonth targetMonth;
+        try {
+            targetMonth = YearMonth.parse(monthStr, MONTH_FMT);
+        } catch (Exception ex) {
+            showWarn("Tháng không hợp lệ!"); return;
+        }
+
+        // Logic 2: Kiểm tra tháng không nhảy cóc
+        String monthError = validateMonthSequence(roomId, targetMonth);
+        if (monthError != null) {
+            showWarn(monthError); return;
+        }
+
         try {
             double ePrev = parseDouble(tfElecPrev.getText());
             double eCurr = parseDouble(tfElecCurr.getText());
@@ -410,14 +514,17 @@ public class UtilityPanel extends JPanel {
 
             Utility u = new Utility(
                 tfId.getText().trim(),
-                (String) cbRoom.getSelectedItem(),
-                tfMonth.getText().trim(),
+                roomId,
+                monthStr,
                 ePrev, eCurr, wPrev, wCurr,
                 parseLong(tfElecPrice.getText()),
                 parseLong(tfWaterPrice.getText()),
                 tfNote.getText().trim(),
                 false
             );
+            if (!DatabaseService.addUtility(u)) {
+                showWarn("Lưu vào database thất bại! Kiểm tra kết nối."); return;
+            }
             utilities.add(u);
             refreshTable(utilities);
             clearForm();
@@ -427,14 +534,18 @@ public class UtilityPanel extends JPanel {
         }
     }
 
-    /** Cập nhật bản ghi đang chọn */
     private void editUtility() {
         if (editingUtility == null) { showWarn("Chọn bản ghi cần sửa từ bảng!"); return; }
+        if (editingUtility.isConfirmed()) {
+            showWarn("Không thể sửa bản ghi đã chốt chỉ số!"); return;
+        }
         try {
             double ePrev = parseDouble(tfElecPrev.getText());
             double eCurr = parseDouble(tfElecCurr.getText());
             double wPrev = parseDouble(tfWaterPrev.getText());
             double wCurr = parseDouble(tfWaterCurr.getText());
+            if (eCurr < ePrev) { showWarn("Chỉ số điện cuối kỳ phải ≥ đầu kỳ!"); return; }
+            if (wCurr < wPrev) { showWarn("Chỉ số nước cuối kỳ phải ≥ đầu kỳ!"); return; }
 
             editingUtility.setRoomId((String) cbRoom.getSelectedItem());
             editingUtility.setMonth(tfMonth.getText().trim());
@@ -445,6 +556,9 @@ public class UtilityPanel extends JPanel {
             editingUtility.setElectricUnitPrice(parseLong(tfElecPrice.getText()));
             editingUtility.setWaterUnitPrice(parseLong(tfWaterPrice.getText()));
             editingUtility.setNote(tfNote.getText().trim());
+            if (!DatabaseService.updateUtility(editingUtility)) {
+                showWarn("Cập nhật database thất bại! Kiểm tra kết nối."); return;
+            }
             refreshTable(utilities);
             showSuccess("Cập nhật thành công!");
         } catch (Exception ex) {
@@ -452,7 +566,6 @@ public class UtilityPanel extends JPanel {
         }
     }
 
-    /** Xóa bản ghi đang chọn */
     private void deleteUtility() {
         if (editingUtility == null) { showWarn("Chọn bản ghi cần xóa!"); return; }
         if (editingUtility.isConfirmed()) {
@@ -463,6 +576,9 @@ public class UtilityPanel extends JPanel {
             + editingUtility.getRoomId() + " tháng " + editingUtility.getMonth() + "?",
             "Xác nhận xóa", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (r == JOptionPane.YES_OPTION) {
+            if (!DatabaseService.deleteUtility(editingUtility.getId())) {
+                showWarn("Xóa database thất bại! Kiểm tra kết nối."); return;
+            }
             utilities.remove(editingUtility);
             editingUtility = null;
             refreshTable(utilities);
@@ -470,31 +586,138 @@ public class UtilityPanel extends JPanel {
         }
     }
 
-    /** Chốt chỉ số — không cho phép sửa sau khi chốt */
+    // ── Logic 3: Chốt chỉ số — chọn từng sinh viên trong phòng ──
+    /**
+     * Khi chốt:
+     *  1. Lấy danh sách tất cả hợp đồng ACTIVE trong phòng.
+     *  2. Tính tổng tiền phòng = cộng monthlyFee của tất cả hợp đồng active (toàn bộ thành viên).
+     *  3. Hiển thị dialog cho admin chọn sinh viên cụ thể cần tạo hóa đơn.
+     *  4. Hóa đơn chỉ tạo cho sinh viên được chọn, với:
+     *     - roomFee = tổng tiền phòng tất cả thành viên (toàn bộ phòng)
+     *     - electricFee, waterFee = tính từ bản ghi điện nước
+     */
     private void confirmUtility() {
         if (editingUtility == null) { showWarn("Chọn bản ghi cần chốt!"); return; }
         if (editingUtility.isConfirmed()) {
             showWarn("Bản ghi này đã được chốt rồi!"); return;
         }
-        int r = JOptionPane.showConfirmDialog(this,
-            "<html>Chốt chỉ số phòng <b>" + editingUtility.getRoomId()
-            + "</b> tháng <b>" + editingUtility.getMonth() + "</b>?<br>"
-            + "Sau khi chốt sẽ không thể chỉnh sửa.</html>",
-            "Xác nhận chốt", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-        if (r == JOptionPane.YES_OPTION) {
-            editingUtility.setConfirmed(true);
-            refreshTable(utilities);
-            showSuccess("Đã chốt chỉ số thành công!");
+
+        String roomId = editingUtility.getRoomId();
+        String month  = editingUtility.getMonth();
+
+        // Lấy tất cả hợp đồng ACTIVE trong phòng
+        List<Contract> activeContracts = DatabaseService.getAllContracts().stream()
+            .filter(c -> c.getRoomId().equals(roomId) && c.getStatus() == Contract.Status.ACTIVE)
+            .collect(Collectors.toList());
+
+        if (activeContracts.isEmpty()) {
+            int r = JOptionPane.showConfirmDialog(this,
+                "<html>Phòng <b>" + roomId + "</b> chưa có hợp đồng hiệu lực.<br>"
+                + "Vẫn chốt chỉ số mà không tạo hóa đơn?</html>",
+                "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+            if (r == JOptionPane.YES_OPTION) {
+                doConfirmWithoutInvoice();
+            }
+            return;
         }
+
+        // Tổng tiền phòng = cộng toàn bộ hợp đồng active
+        long totalRoomFee = activeContracts.stream()
+            .mapToLong(Contract::getMonthlyFee)
+            .sum();
+
+        // Danh sách sinh viên để chọn
+        String[] studentOptions = activeContracts.stream()
+            .map(c -> c.getStudentId() + " - " + c.getStudentName()
+                    + " (" + String.format("%,d đ/tháng", c.getMonthlyFee()) + ")")
+            .toArray(String[]::new);
+
+        // Dialog chọn sinh viên
+        JPanel dlgPanel = new JPanel(new BorderLayout(0, 10));
+        dlgPanel.setBorder(new EmptyBorder(8, 8, 8, 8));
+
+        JLabel info = new JLabel(
+            "<html><b>Phòng " + roomId + " — Tháng " + month + "</b><br>"
+            + "Tổng tiền phòng (tất cả " + activeContracts.size() + " thành viên): "
+            + "<b>" + String.format("%,d đ", totalRoomFee) + "</b><br>"
+            + "Tiền điện nước: <b>" + String.format("%,d đ", editingUtility.getTotalFee()) + "</b><br><br>"
+            + "Chọn sinh viên cần tạo hóa đơn:</html>"
+        );
+        info.setFont(UITheme.FONT_SMALL);
+
+        JComboBox<String> cbStudent = new JComboBox<>(studentOptions);
+        cbStudent.setPreferredSize(new Dimension(400, 36));
+
+        dlgPanel.add(info, BorderLayout.NORTH);
+        dlgPanel.add(cbStudent, BorderLayout.CENTER);
+
+        int confirm = JOptionPane.showConfirmDialog(this, dlgPanel,
+            "Chốt chỉ số & Tạo hóa đơn",
+            JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (confirm != JOptionPane.OK_OPTION) return;
+
+        int idx = cbStudent.getSelectedIndex();
+        if (idx < 0) return;
+        Contract selectedContract = activeContracts.get(idx);
+
+        // Kiểm tra hóa đơn đã tồn tại cho sinh viên này trong tháng này
+        boolean invoiceExists = DatabaseService.getAllInvoices().stream()
+            .anyMatch(inv -> inv.getStudentId().equals(selectedContract.getStudentId())
+                         && inv.getMonth().equals(month));
+        if (invoiceExists) {
+            showWarn("Sinh viên " + selectedContract.getStudentName()
+                + " đã có hóa đơn tháng " + month + " rồi!");
+            return;
+        }
+
+        // Chốt bản ghi điện nước
+        editingUtility.setConfirmed(true);
+        if (!DatabaseService.updateUtility(editingUtility)) {
+            showWarn("Lưu trạng thái chốt thất bại! Kiểm tra kết nối."); return;
+        }
+
+        // Tạo hóa đơn CHỈ cho sinh viên được chọn
+        // roomFee = tổng tiền phòng của tất cả thành viên trong phòng
+        Invoice inv = new Invoice(
+            DatabaseService.nextInvoiceId(),
+            selectedContract.getStudentId(),
+            selectedContract.getStudentName(),
+            roomId,
+            month,
+            totalRoomFee,                       // tổng tiền phòng tất cả thành viên
+            editingUtility.getElectricFee(),
+            editingUtility.getWaterFee(),
+            false
+        );
+
+        if (DatabaseService.addInvoice(inv)) {
+            refreshTable(utilities);
+            showSuccess("Đã chốt chỉ số và tạo hóa đơn " + inv.getId()
+                + " cho " + selectedContract.getStudentName()
+                + " — phòng " + roomId + " tháng " + month + "!"
+                + "\n💰 Tiền phòng (cả phòng): " + String.format("%,d đ", totalRoomFee)
+                + "\n⚡ Tiền điện: " + String.format("%,d đ", editingUtility.getElectricFee())
+                + "\n💧 Tiền nước: " + String.format("%,d đ", editingUtility.getWaterFee()));
+        } else {
+            showSuccess("Đã chốt chỉ số!\n⚠ Tạo hóa đơn tự động thất bại, vui lòng kiểm tra lại.");
+        }
+        refreshTable(utilities);
     }
 
-    /** Lọc bảng theo tháng, trạng thái chốt và từ khóa */
+    private void doConfirmWithoutInvoice() {
+        editingUtility.setConfirmed(true);
+        if (!DatabaseService.updateUtility(editingUtility)) {
+            showWarn("Lưu trạng thái chốt thất bại! Kiểm tra kết nối."); return;
+        }
+        refreshTable(utilities);
+        showSuccess("Đã chốt chỉ số! (Không tạo hóa đơn vì phòng chưa có hợp đồng hiệu lực.)");
+    }
+
     private void filterTable(String monthFilter, String confirmFilter, String keyword) {
         String q = keyword.toLowerCase().trim();
         List<Utility> filtered = utilities.stream()
             .filter(u -> {
-                boolean matchMonth   = "Tất cả tháng".equals(monthFilter)
-                    || u.getMonth().equals(monthFilter);
+                boolean matchMonth   = "Tất cả tháng".equals(monthFilter) || u.getMonth().equals(monthFilter);
                 boolean matchConfirm = "Tất cả".equals(confirmFilter)
                     || ("✓ Đã chốt".equals(confirmFilter)  && u.isConfirmed())
                     || ("⏳ Chưa chốt".equals(confirmFilter) && !u.isConfirmed());
@@ -508,20 +731,25 @@ public class UtilityPanel extends JPanel {
         refreshTable(filtered);
     }
 
-    /** Làm mới toàn bộ hàng trong bảng */
     private void refreshTable(List<Utility> list) {
         tableModel.setRowCount(0);
         for (Utility u : list) tableModel.addRow(u.toRow());
         lblCount.setText("Tổng cộng: " + utilities.size() + " bản ghi");
     }
 
-    /** Click hàng → đổ dữ liệu vào form */
     private void fillFormFromRow(int row) {
         String id = (String) tableModel.getValueAt(row, 0);
         editingUtility = utilities.stream()
             .filter(u -> u.getId().equals(id))
             .findFirst().orElse(null);
         if (editingUtility == null) return;
+
+        // Khi fill từ bảng → cho phép sửa đầu kỳ nếu bản ghi chưa chốt
+        boolean isConfirmed = editingUtility.isConfirmed();
+        tfElecPrev.setEditable(!isConfirmed);
+        tfElecPrev.setBackground(isConfirmed ? new Color(0xF3F4F6) : UITheme.WHITE);
+        tfWaterPrev.setEditable(!isConfirmed);
+        tfWaterPrev.setBackground(isConfirmed ? new Color(0xF3F4F6) : UITheme.WHITE);
 
         tfId.setText(editingUtility.getId());
         tfMonth.setText(editingUtility.getMonth());
@@ -538,14 +766,17 @@ public class UtilityPanel extends JPanel {
                 cbRoom.setSelectedIndex(i); break;
             }
         }
-        updatePreview(); // Cập nhật preview tính tiền
+        updatePreview();
     }
 
-    /** Reset form về trạng thái thêm mới */
     private void clearForm() {
         editingUtility = null;
         tfId.setText(nextUtilityId());
-        tfMonth.setText("06/2026");
+        tfMonth.setText("");
+        tfElecPrev.setEditable(false);
+        tfElecPrev.setBackground(new Color(0xF3F4F6));
+        tfWaterPrev.setEditable(false);
+        tfWaterPrev.setBackground(new Color(0xF3F4F6));
         tfElecPrev.setText(""); tfElecCurr.setText("");
         tfWaterPrev.setText(""); tfWaterCurr.setText("");
         tfElecPrice.setText(String.valueOf(Utility.DEFAULT_ELECTRIC_UNIT_PRICE));
@@ -558,11 +789,7 @@ public class UtilityPanel extends JPanel {
     }
 
     // ── Tiện ích ─────────────────────────────────────────────────
-
-    private String nextUtilityId() {
-        if (utilities.isEmpty()) return "UT0001";
-        return Utility.nextId(utilities.get(utilities.size() - 1).getId());
-    }
+    private String nextUtilityId() { return DatabaseService.nextUtilityId(); }
 
     private double parseDouble(String s) {
         try { return Double.parseDouble(s.replaceAll("[^0-9.]", "")); }
@@ -611,14 +838,6 @@ public class UtilityPanel extends JPanel {
         return row;
     }
 
-    private JPanel singleRow(String label, JComponent field) {
-        return makeRow1(label, field);
-    }
-
-    private void addField(JPanel grid, String label, JComponent field) {
-        grid.add(makeFieldPanel(label, field));
-    }
-
     private void showWarn(String msg) {
         JOptionPane.showMessageDialog(this, "⚠ " + msg, "Lưu ý", JOptionPane.WARNING_MESSAGE);
     }
@@ -628,7 +847,6 @@ public class UtilityPanel extends JPanel {
     }
 
     // ── Cell Renderers ────────────────────────────────────────────
-
     private TableCellRenderer idRenderer() {
         return (t, v, sel, focus, row, col) -> {
             JLabel l = new JLabel(v.toString());
@@ -664,5 +882,36 @@ public class UtilityPanel extends JPanel {
             lbl.setBackground(sel ? UITheme.PRIMARY_LIGHT : UITheme.WHITE);
             return lbl;
         };
+    }
+
+    private void exportUtilityReport() {
+        javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+        fc.setSelectedFile(new java.io.File("BaoCao_DienNuoc.csv"));
+        fc.setDialogTitle("Lưu báo cáo điện nước");
+        if (fc.showSaveDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+        java.io.File file = fc.getSelectedFile();
+        if (!file.getName().toLowerCase().endsWith(".csv"))
+            file = new java.io.File(file.getPath() + ".csv");
+        try (java.io.PrintWriter pw = new java.io.PrintWriter(
+                new java.io.OutputStreamWriter(new java.io.FileOutputStream(file), "UTF-8"))) {
+            pw.print('\uFEFF');
+            pw.println("Mã BG,Phòng,Tháng,Điện đầu,Điện cuối,Dùng (kWh),Tiền điện,Nước đầu,Nước cuối,Dùng (m³),Tiền nước,Tổng tiền,Trạng thái");
+            for (Utility u : utilities) {
+                pw.printf("%s,%s,%s,%.1f,%.1f,%.1f,%d,%.1f,%.1f,%.1f,%d,%d,%s%n",
+                    u.getId(), u.getRoomId(), u.getMonth(),
+                    u.getElectricPrev(), u.getElectricCurr(),
+                    u.getElectricCurr() - u.getElectricPrev(), u.getElectricFee(),
+                    u.getWaterPrev(), u.getWaterCurr(),
+                    u.getWaterCurr() - u.getWaterPrev(), u.getWaterFee(),
+                    u.getElectricFee() + u.getWaterFee(),
+                    u.isConfirmed() ? "Đã chốt" : "Chưa chốt");
+            }
+            JOptionPane.showMessageDialog(this,
+                "✅ Đã xuất " + utilities.size() + " bản ghi ra:\n" + file.getAbsolutePath(),
+                "Xuất thành công", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                "❌ Xuất thất bại: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

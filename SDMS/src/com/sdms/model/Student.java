@@ -41,6 +41,6 @@ public class Student {
     public void setIdCard(String v)     { this.idCard=v; }
 
     public Object[] toRow() {
-        return new Object[]{id, fullName, roomId.isEmpty()?"—":roomId, university, phone, email, status};
+        return new Object[]{id, fullName, roomId.isEmpty()?"—":roomId, faculty, phone, email, status};
     }
 }

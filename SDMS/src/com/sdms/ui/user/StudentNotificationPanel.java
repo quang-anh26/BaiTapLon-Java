@@ -1,6 +1,9 @@
 package com.sdms.ui.user;
 
+import com.sdms.model.Notification;
+import com.sdms.model.Student;
 import com.sdms.model.User;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 
 import javax.swing.*;
@@ -13,31 +16,23 @@ import java.util.stream.Collectors;
 
 /**
  * Panel thông báo hệ thống dành cho sinh viên.
- * Hiển thị danh sách thông báo theo loại, có thể đánh dấu đã đọc.
+ * Toàn bộ dữ liệu lấy từ database qua DatabaseService.getNotificationsForStudent().
+ * Đánh dấu đã đọc ghi ngược vào DB qua DatabaseService.markNotificationRead().
  */
 public class StudentNotificationPanel extends JPanel {
 
-    private final User currentUser;
+    private final User    currentUser;
+    private final Student student;
 
-    // Model thông báo nội bộ (không dùng Notification model để độc lập)
-    private static class Notice {
-        String id, icon, type, title, content, time;
-        boolean read, pinned;
-        Notice(String id, String icon, String type, String title,
-               String content, String time, boolean read, boolean pinned) {
-            this.id=id; this.icon=icon; this.type=type; this.title=title;
-            this.content=content; this.time=time; this.read=read; this.pinned=pinned;
-        }
-    }
-
-    private final List<Notice> notices = new ArrayList<>();
+    private List<Notification> notices = new ArrayList<>();
     private JPanel             listPanel;
     private JLabel             lblUnread;
     private String             currentFilter = "Tất cả";
 
     public StudentNotificationPanel(User currentUser) {
         this.currentUser = currentUser;
-        initSampleData();
+        this.student     = findStudent();
+        loadFromDatabase();
 
         setBackground(UITheme.BG_LIGHT);
         setLayout(new BorderLayout());
@@ -45,51 +40,34 @@ public class StudentNotificationPanel extends JPanel {
         add(buildContent(), BorderLayout.CENTER);
     }
 
-    private void initSampleData() {
-        notices.add(new Notice("TB001","🔴","Hóa đơn",
-            "Hóa đơn tháng 06/2026 đã sẵn sàng",
-            "Hóa đơn tháng 06/2026 của bạn đã được tạo. Tổng số tiền: 926,000 đ. "
-            + "Vui lòng thanh toán trước ngày 15/06/2026 để tránh phạt trễ hạn.",
-            "1 giờ trước", false, true));
+    // ── Tìm student từ DB ─────────────────────────────────────────
 
-        notices.add(new Notice("TB002","📄","Hợp đồng",
-            "Hợp đồng sắp hết hạn",
-            "Hợp đồng thuê phòng của bạn sẽ hết hạn vào ngày 31/08/2026 (còn 82 ngày). "
-            + "Vui lòng liên hệ Ban quản lý để gia hạn trước ngày 01/08/2026.",
-            "2 ngày trước", false, false));
+    private Student findStudent() {
+        String sid = currentUser.getStudentId();
+        if (sid != null && !sid.isEmpty()) {
+            Student s = DatabaseService.getAllStudents().stream()
+                .filter(st -> st.getId().equals(sid))
+                .findFirst().orElse(null);
+            if (s != null) return s;
+        }
+        return DatabaseService.getAllStudents().stream()
+            .filter(st -> st.getId().equalsIgnoreCase(currentUser.getUsername()))
+            .findFirst().orElse(null);
+    }
 
-        notices.add(new Notice("TB003","🔍","Kiểm tra",
-            "Lịch kiểm tra phòng định kỳ tháng 6",
-            "Ban quản lý sẽ tiến hành kiểm tra phòng định kỳ vào ngày 10/06/2026, "
-            + "bắt đầu từ 09:00. Đề nghị sinh viên có mặt tại phòng và giữ phòng gọn gàng, sạch sẽ.",
-            "3 ngày trước", true, false));
+    // ── Load thông báo từ DB ──────────────────────────────────────
 
-        notices.add(new Notice("TB004","🔵","Chung",
-            "Nhắc nhở vệ sinh chung cuối tuần",
-            "Lịch tổng vệ sinh khu vực hành lang và nhà vệ sinh chung: Thứ 7, ngày 08/06/2026 "
-            + "lúc 08:00 – 10:00. Đề nghị các bạn sinh viên phối hợp.",
-            "5 ngày trước", true, false));
-
-        notices.add(new Notice("TB005","⚠","Vi phạm",
-            "Nhắc nhở về việc tuân thủ giờ giới nghiêm",
-            "Ban quản lý ghi nhận một số sinh viên về muộn sau 23:00. "
-            + "Đề nghị tất cả sinh viên tuân thủ giờ giới nghiêm. Vi phạm lần 2 sẽ bị lập biên bản.",
-            "1 tuần trước", true, false));
-
-        notices.add(new Notice("TB006","🔵","Chung",
-            "Thông báo lịch cúp điện bảo trì",
-            "Do bảo trì hệ thống điện, khu B sẽ bị cúp điện từ 14:00 – 17:00 ngày 12/06/2026. "
-            + "Đề nghị sinh viên chuẩn bị sạc đầy thiết bị trước đó.",
-            "1 tuần trước", true, false));
-
-        notices.add(new Notice("TB007","🔵","Chung",
-            "Hướng dẫn đăng ký ở lại hè 2026",
-            "Sinh viên có nhu cầu ở lại ký túc xá trong hè 2026 vui lòng đăng ký "
-            + "tại văn phòng BQL từ ngày 01/07 – 15/07/2026. Mang theo thẻ sinh viên.",
-            "2 tuần trước", true, false));
+    private void loadFromDatabase() {
+        notices.clear();
+        String sid    = student != null ? student.getId()    : currentUser.getStudentId();
+        String roomId = student != null ? student.getRoomId() : "";
+        if (sid != null && !sid.isEmpty()) {
+            notices.addAll(DatabaseService.getNotificationsForStudent(sid, roomId));
+        }
     }
 
     // ── Header ────────────────────────────────────────────────────
+
     private JPanel buildHeader() {
         JPanel p = new JPanel(new BorderLayout());
         p.setBackground(UITheme.WHITE);
@@ -111,7 +89,7 @@ public class StudentNotificationPanel extends JPanel {
         left.add(title, BorderLayout.NORTH);
         left.add(sub,   BorderLayout.SOUTH);
 
-        long unread = notices.stream().filter(n -> !n.read).count();
+        long unread = notices.stream().filter(n -> !n.isRead()).count();
         lblUnread = UITheme.badge(unread + " chưa đọc",
             unread > 0 ? UITheme.DANGER_BG : UITheme.BG_SECONDARY,
             unread > 0 ? UITheme.DANGER    : UITheme.TEXT_SECONDARY);
@@ -130,14 +108,13 @@ public class StudentNotificationPanel extends JPanel {
     }
 
     // ── Nội dung ──────────────────────────────────────────────────
+
     private JPanel buildContent() {
         JPanel p = new JPanel(new BorderLayout(0, 0));
         p.setBackground(UITheme.BG_LIGHT);
 
-        // Thanh filter tabs
         p.add(buildFilterBar(), BorderLayout.NORTH);
 
-        // Danh sách thông báo
         listPanel = new JPanel();
         listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
         listPanel.setBackground(UITheme.BG_LIGHT);
@@ -152,7 +129,8 @@ public class StudentNotificationPanel extends JPanel {
         return p;
     }
 
-    // ── Thanh filter loại thông báo ───────────────────────────────
+    // ── Thanh filter theo loại thông báo ─────────────────────────
+
     private JPanel buildFilterBar() {
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 10));
         bar.setBackground(UITheme.WHITE);
@@ -196,34 +174,40 @@ public class StudentNotificationPanel extends JPanel {
         btn.setBorderPainted(false);
         btn.setFocusPainted(false);
         btn.setContentAreaFilled(false);
-        btn.setPreferredSize(new Dimension(
-            text.length() * 10 + 20, 32));
+        btn.setPreferredSize(new Dimension(text.length() * 10 + 20, 32));
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return btn;
     }
 
     // ── Render danh sách theo filter ─────────────────────────────
+
     private void renderList() {
         listPanel.removeAll();
 
-        List<Notice> filtered = notices.stream()
+        List<Notification> filtered = notices.stream()
             .filter(n -> {
                 return switch (currentFilter) {
-                    case "Chưa đọc" -> !n.read;
-                    case "Tất cả"   -> true;
-                    default         -> n.type.equals(currentFilter);
+                    case "Chưa đọc"  -> !n.isRead();
+                    case "Tất cả"    -> true;
+                    case "Hóa đơn"   -> n.getType() == Notification.Type.INVOICE;
+                    case "Hợp đồng"  -> n.getType() == Notification.Type.CONTRACT;
+                    case "Vi phạm"   -> n.getType() == Notification.Type.VIOLATION;
+                    case "Kiểm tra"  -> n.getType() == Notification.Type.INSPECTION;
+                    case "Chung"     -> n.getType() == Notification.Type.GENERAL
+                                     || n.getType() == Notification.Type.URGENT;
+                    default          -> true;
                 };
             })
             .collect(Collectors.toList());
 
         // Thông báo ghim lên trước
-        List<Notice> pinned  = filtered.stream().filter(n -> n.pinned).collect(Collectors.toList());
-        List<Notice> regular = filtered.stream().filter(n -> !n.pinned).collect(Collectors.toList());
+        List<Notification> pinned  = filtered.stream().filter(Notification::isPinned).collect(Collectors.toList());
+        List<Notification> regular = filtered.stream().filter(n -> !n.isPinned()).collect(Collectors.toList());
 
         if (!pinned.isEmpty()) {
             listPanel.add(sectionLabel("📌  Thông báo quan trọng"));
             listPanel.add(Box.createVerticalStrut(6));
-            for (Notice n : pinned) {
+            for (Notification n : pinned) {
                 listPanel.add(noticeCard(n));
                 listPanel.add(Box.createVerticalStrut(8));
             }
@@ -233,7 +217,7 @@ public class StudentNotificationPanel extends JPanel {
         if (!regular.isEmpty()) {
             listPanel.add(sectionLabel("🔔  Tất cả thông báo"));
             listPanel.add(Box.createVerticalStrut(6));
-            for (Notice n : regular) {
+            for (Notification n : regular) {
                 listPanel.add(noticeCard(n));
                 listPanel.add(Box.createVerticalStrut(8));
             }
@@ -253,39 +237,41 @@ public class StudentNotificationPanel extends JPanel {
     }
 
     // ── Card một thông báo ────────────────────────────────────────
-    private JPanel noticeCard(Notice n) {
+
+    private JPanel noticeCard(Notification n) {
         JPanel card = new JPanel(new BorderLayout(12, 0));
         card.setAlignmentX(LEFT_ALIGNMENT);
         card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 9999));
-        card.setBackground(n.read ? UITheme.WHITE : new Color(0xEFF6FF));
+        card.setBackground(n.isRead() ? UITheme.WHITE : new Color(0xEFF6FF));
         card.setBorder(new CompoundBorder(
-            new LineBorder(n.read ? UITheme.BORDER : new Color(0xBFDBFE), 1, true),
+            new LineBorder(n.isRead() ? UITheme.BORDER : new Color(0xBFDBFE), 1, true),
             new EmptyBorder(12, 14, 12, 14)
         ));
 
-        // Icon type
+        // Icon loại thông báo
         JPanel iconPanel = new JPanel(new BorderLayout());
         iconPanel.setOpaque(false);
         iconPanel.setPreferredSize(new Dimension(44, 44));
 
-        JLabel lblIcon = new JLabel(n.icon, SwingConstants.CENTER);
+        JLabel lblIcon = new JLabel(n.getTypeIcon(), SwingConstants.CENTER);
         lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 22));
         lblIcon.setPreferredSize(new Dimension(44, 44));
         lblIcon.setOpaque(true);
-        lblIcon.setBackground(n.read ? UITheme.BG_SECONDARY : new Color(0xDBEAFE));
+        lblIcon.setBackground(n.isRead() ? UITheme.BG_SECONDARY : new Color(0xDBEAFE));
         lblIcon.setBorder(new EmptyBorder(8, 8, 8, 8));
         iconPanel.add(lblIcon, BorderLayout.CENTER);
 
         // Nội dung
-        JLabel lblTitle = new JLabel(n.title);
-        lblTitle.setFont(n.read ? UITheme.FONT_BODY : UITheme.FONT_BOLD);
+        JLabel lblTitle = new JLabel(n.getTitle());
+        lblTitle.setFont(n.isRead() ? UITheme.FONT_BODY : UITheme.FONT_BOLD);
         lblTitle.setForeground(UITheme.TEXT_PRIMARY);
 
-        JLabel lblContent = new JLabel("<html><body style='width:500px;color:#6B7280'>"
-            + n.content + "</body></html>");
+        JLabel lblContent = new JLabel(
+            "<html><body style='width:500px;color:#6B7280'>" + n.getContent() + "</body></html>");
         lblContent.setFont(UITheme.FONT_SMALL);
 
-        JLabel lblMeta = new JLabel(n.icon + "  " + n.type + "  ·  " + n.time);
+        JLabel lblMeta = new JLabel(
+            n.getTypeIcon() + "  " + n.getTypeText() + "  ·  " + n.getRelativeTime());
         lblMeta.setFont(UITheme.FONT_TINY);
         lblMeta.setForeground(UITheme.TEXT_MUTED);
 
@@ -300,11 +286,15 @@ public class StudentNotificationPanel extends JPanel {
         btnPanel.setOpaque(false);
         btnPanel.setPreferredSize(new Dimension(110, 40));
 
-        if (!n.read) {
+        if (!n.isRead()) {
             JButton btnRead = UITheme.outlineBtn("✓ Đã đọc");
             btnRead.setPreferredSize(new Dimension(100, 32));
             btnRead.addActionListener(e -> {
-                n.read = true;
+                String sid = student != null ? student.getId() : "";
+                if (!sid.isEmpty()) {
+                    DatabaseService.markNotificationRead(n.getId(), sid);
+                }
+                n.setRead(true);
                 renderList();
                 updateUnreadBadge();
             });
@@ -323,16 +313,24 @@ public class StudentNotificationPanel extends JPanel {
         return card;
     }
 
-    /** Đánh dấu tất cả đã đọc */
+    // ── Đánh dấu tất cả đã đọc — ghi vào DB ─────────────────────
+
     private void markAllRead() {
-        notices.forEach(n -> n.read = true);
+        String sid = student != null ? student.getId() : "";
+        for (Notification n : notices) {
+            if (!n.isRead()) {
+                if (!sid.isEmpty()) {
+                    DatabaseService.markNotificationRead(n.getId(), sid);
+                }
+                n.setRead(true);
+            }
+        }
         renderList();
         updateUnreadBadge();
     }
 
-    /** Cập nhật badge số chưa đọc */
     private void updateUnreadBadge() {
-        long unread = notices.stream().filter(n -> !n.read).count();
+        long unread = notices.stream().filter(n -> !n.isRead()).count();
         lblUnread.setText(unread + " chưa đọc");
         lblUnread.setBackground(unread > 0 ? UITheme.DANGER_BG : UITheme.BG_SECONDARY);
         lblUnread.setForeground(unread > 0 ? UITheme.DANGER    : UITheme.TEXT_SECONDARY);

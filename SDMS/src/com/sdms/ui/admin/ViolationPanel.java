@@ -221,9 +221,7 @@ public class ViolationPanel extends JPanel {
         btnDelete.addActionListener(e  -> deleteViolation());
         btnReset.addActionListener(e   -> clearForm());
         btnProcess.addActionListener(e -> processViolation());
-        btnExport.addActionListener(e  -> JOptionPane.showMessageDialog(this,
-            "✅ Đã xuất báo cáo vi phạm thành công!", "Thông báo",
-            JOptionPane.INFORMATION_MESSAGE));
+        btnExport.addActionListener(e  -> exportViolationReport());
 
         // Ghép form
         form.add(sec);       form.add(Box.createVerticalStrut(4));
@@ -733,5 +731,36 @@ public class ViolationPanel extends JPanel {
             lbl.setBackground(sel ? UITheme.PRIMARY_LIGHT : UITheme.WHITE);
             return lbl;
         };
+    }
+
+    /** Xuất danh sách vi phạm ra file CSV (mở được bằng Excel) */
+    private void exportViolationReport() {
+        javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+        fc.setSelectedFile(new java.io.File("BaoCao_ViPham.csv"));
+        fc.setDialogTitle("Lưu báo cáo vi phạm");
+        if (fc.showSaveDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+
+        java.io.File file = fc.getSelectedFile();
+        if (!file.getName().toLowerCase().endsWith(".csv"))
+            file = new java.io.File(file.getPath() + ".csv");
+
+        try (java.io.PrintWriter pw = new java.io.PrintWriter(
+                new java.io.OutputStreamWriter(new java.io.FileOutputStream(file), "UTF-8"))) {
+            pw.print('\uFEFF');
+            pw.println("Mã VP,Mã SV,Tên sinh viên,Phòng,Ngày,Loại vi phạm,Mức độ,Tiền phạt,Trạng thái,Mô tả");
+            for (com.sdms.model.Violation v : violations) {
+                pw.printf("%s,%s,%s,%s,%s,%s,%s,%d,%s,\"%s\"%n",
+                    v.getId(), v.getStudentId(), v.getStudentName(), v.getRoomId(),
+                    v.getDateStr(), v.getType(), v.getSeverityText(),
+                    v.getFine(), v.getStatusText(),
+                    v.getDescription() == null ? "" : v.getDescription().replace("\"", "\"\""));
+            }
+            JOptionPane.showMessageDialog(this,
+                "✅ Đã xuất " + violations.size() + " vi phạm ra:\n" + file.getAbsolutePath(),
+                "Xuất thành công", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                "❌ Xuất thất bại: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

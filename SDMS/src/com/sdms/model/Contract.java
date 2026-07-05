@@ -74,6 +74,20 @@ public class Contract {
         return Math.max(0, days);
     }
 
+    // ── Phần trăm thời gian đã sử dụng (0–100) ──────────────────
+    /**
+     * @return phần trăm thời gian đã sử dụng của hợp đồng.
+     * VD: hợp đồng 12 tháng, đã đi được 3 tháng → 25%
+     */
+    public int getElapsedPercent() {
+        if (startDate == null || endDate == null) return 0;
+        long total   = ChronoUnit.DAYS.between(startDate, endDate);
+        if (total <= 0) return 100;
+        long elapsed = ChronoUnit.DAYS.between(startDate, LocalDate.now());
+        elapsed = Math.max(0, Math.min(elapsed, total));
+        return (int) (elapsed * 100 / total);
+    }
+
     // ── Tính tổng thời hạn hợp đồng tính theo tháng ─────────────
     /**
      * @return số tháng từ ngày bắt đầu đến ngày kết thúc

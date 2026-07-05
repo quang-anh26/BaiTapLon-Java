@@ -1,7 +1,12 @@
 package com.sdms.ui.admin;
 
+import com.sdms.model.User;
+import com.sdms.utils.DatabaseService;
 import com.sdms.utils.UITheme;
 import java.awt.*;
+import java.security.MessageDigest;
+import java.util.HashMap;
+import java.util.Map;
 import javax.swing.*;
 import javax.swing.border.*;
 
@@ -10,6 +15,11 @@ import javax.swing.border.*;
  * Bao gồm: Thông tin trường/KTX | Đơn giá điện nước | Quy định nội trú | Tài khoản Admin.
  */
 public class SettingsPanel extends JPanel {
+
+    private final User currentUser;
+
+    // Cache settings từ DB khi mở panel
+    private Map<String, String> savedSettings = new HashMap<>();
 
     // ── Các trường cài đặt chung ─────────────────────────────────
     private JTextField tfDormName, tfAddress, tfPhone, tfEmail, tfDirector;
@@ -28,8 +38,15 @@ public class SettingsPanel extends JPanel {
     private JPasswordField pfCurrentPwd, pfNewPwd, pfConfirmPwd;
 
     public SettingsPanel() {
+        this(null);
+    }
+
+    public SettingsPanel(User user) {
+        this.currentUser = user;
         setBackground(UITheme.BG_LIGHT);
         setLayout(new BorderLayout());
+        // Load settings từ DB trước khi build UI
+        try { savedSettings = DatabaseService.getAllSettings(); } catch (Exception ignored) {}
         add(buildHeader(), BorderLayout.NORTH);
 
         JScrollPane scroll = new JScrollPane(buildContent());
@@ -95,22 +112,22 @@ public class SettingsPanel extends JPanel {
     private JPanel buildDormInfoSection() {
         JPanel card = sectionCard("🏫  Thông tin Ký túc xá");
 
-        tfDormName    = UITheme.textField("Ký túc xá Đại học Bách Khoa Hà Nội");
-        tfAddress     = UITheme.textField("01 Đại Cồ Việt, Hai Bà Trưng, Hà Nội");
-        tfPhone       = UITheme.textField("024 3869 2222");
-        tfEmail       = UITheme.textField("ktx@hust.edu.vn");
-        tfDirector    = UITheme.textField("Nguyễn Văn Quản");
-        tfAcademicYear= UITheme.textField("2025–2026");
-        tfSemester    = UITheme.textField("Học kỳ 2");
+        tfDormName    = UITheme.textField("");
+        tfAddress     = UITheme.textField("");
+        tfPhone       = UITheme.textField("");
+        tfEmail       = UITheme.textField("");
+        tfDirector    = UITheme.textField("");
+        tfAcademicYear= UITheme.textField("");
+        tfSemester    = UITheme.textField("");
 
-        // Giá trị mặc định
-        tfDormName.setText("Ký túc xá Đại học SDMS");
-        tfAddress.setText("01 Đường Đại học, Quận 1, TP. Hà Nội");
-        tfPhone.setText("024 1234 5678");
-        tfEmail.setText("ktx@sdms.edu.vn");
-        tfDirector.setText("Trần Thị Hương");
-        tfAcademicYear.setText("2025–2026");
-        tfSemester.setText("Học kỳ 2");
+        // Đọc từ DB, fallback về giá trị mặc định nếu chưa có
+        tfDormName.setText(    saved("dorm_name",     "Ký túc xá Đại học SDMS"));
+        tfAddress.setText(     saved("dorm_address",  "01 Đường Đại học, Quận 1, TP. Hà Nội"));
+        tfPhone.setText(       saved("dorm_phone",    "024 1234 5678"));
+        tfEmail.setText(       saved("dorm_email",    "ktx@sdms.edu.vn"));
+        tfDirector.setText(    saved("dorm_director", "Trần Thị Hương"));
+        tfAcademicYear.setText(saved("academic_year", "2025–2026"));
+        tfSemester.setText(    saved("semester",      "Học kỳ 2"));
 
         JPanel grid = formGrid();
         addField(grid, "Tên ký túc xá",    tfDormName);
@@ -123,7 +140,22 @@ public class SettingsPanel extends JPanel {
 
         JPanel btnRow = actionRow();
         JButton btn = UITheme.primaryBtn("💾 Lưu thông tin");
-        btn.addActionListener(e -> showSuccess("Đã lưu thông tin ký túc xá!"));
+        btn.addActionListener(e -> {
+            Map<String,String> m = new HashMap<>();
+            m.put("dorm_name",     tfDormName.getText().trim());
+            m.put("dorm_address",  tfAddress.getText().trim());
+            m.put("dorm_phone",    tfPhone.getText().trim());
+            m.put("dorm_email",    tfEmail.getText().trim());
+            m.put("dorm_director", tfDirector.getText().trim());
+            m.put("academic_year", tfAcademicYear.getText().trim());
+            m.put("semester",      tfSemester.getText().trim());
+            if (DatabaseService.saveSettings(m)) {
+                savedSettings.putAll(m);
+                showSuccess("Đã lưu thông tin ký túc xá!");
+            } else {
+                showError("Lưu thất bại! Kiểm tra kết nối database.");
+            }
+        });
         btnRow.add(btn);
 
         card.add(grid);
@@ -138,15 +170,15 @@ public class SettingsPanel extends JPanel {
     private JPanel buildPricingSection() {
         JPanel card = sectionCard("💰  Đơn giá & Tiền phòng");
 
-        tfElecPrice = UITheme.textField("2000");
-        tfWaterPrice= UITheme.textField("6000");
-        tfRoomFee4  = UITheme.textField("850000");
-        tfRoomFee6  = UITheme.textField("650000");
+        tfElecPrice = UITheme.textField("");
+        tfWaterPrice= UITheme.textField("");
+        tfRoomFee4  = UITheme.textField("");
+        tfRoomFee6  = UITheme.textField("");
 
-        tfElecPrice.setText("2,000");
-        tfWaterPrice.setText("6,000");
-        tfRoomFee4.setText("850,000");
-        tfRoomFee6.setText("650,000");
+        tfElecPrice.setText( saved("electric_unit_price", "2000"));
+        tfWaterPrice.setText(saved("water_unit_price",    "6000"));
+        tfRoomFee4.setText(  saved("room_fee_4",          "850000"));
+        tfRoomFee6.setText(  saved("room_fee_6",          "650000"));
 
         JPanel grid = formGrid();
         addFieldWithUnit(grid, "Đơn giá điện (đ/kWh)",  tfElecPrice,  "đồng/kWh");
@@ -164,7 +196,19 @@ public class SettingsPanel extends JPanel {
 
         JPanel btnRow = actionRow();
         JButton btn = UITheme.primaryBtn("💾 Lưu đơn giá");
-        btn.addActionListener(e -> showSuccess("Đã cập nhật đơn giá thành công!"));
+        btn.addActionListener(e -> {
+            Map<String,String> m = new HashMap<>();
+            m.put("electric_unit_price", tfElecPrice.getText().replaceAll("[^0-9]",""));
+            m.put("water_unit_price",    tfWaterPrice.getText().replaceAll("[^0-9]",""));
+            m.put("room_fee_4",          tfRoomFee4.getText().replaceAll("[^0-9]",""));
+            m.put("room_fee_6",          tfRoomFee6.getText().replaceAll("[^0-9]",""));
+            if (DatabaseService.saveSettings(m)) {
+                savedSettings.putAll(m);
+                showSuccess("Đã cập nhật đơn giá thành công!");
+            } else {
+                showError("Lưu thất bại! Kiểm tra kết nối database.");
+            }
+        });
         JButton btnHistory = UITheme.outlineBtn("📋 Lịch sử thay đổi");
         btnHistory.addActionListener(e -> showPriceHistory());
         btnRow.add(btn);
@@ -201,15 +245,17 @@ public class SettingsPanel extends JPanel {
     private JPanel buildRulesSection() {
         JPanel card = sectionCard("📋  Quy định nội trú");
 
-        tfCurfew     = UITheme.textField("23:00");
-        tfGuestPolicy= UITheme.textField("Phải đăng ký trước 20:00");
+        tfCurfew     = UITheme.textField("");
+        tfGuestPolicy= UITheme.textField("");
         spMaxWarning = new JSpinner(new SpinnerNumberModel(3, 1, 10, 1));
         spMaxWarning.setFont(UITheme.FONT_BODY);
         ((JSpinner.DefaultEditor) spMaxWarning.getEditor()).getTextField()
             .setBackground(UITheme.BG_SECONDARY);
 
-        tfCurfew.setText("23:00");
-        tfGuestPolicy.setText("Phải đăng ký trước 20:00 cùng ngày");
+        tfCurfew.setText(     saved("curfew_time",      "23:00"));
+        tfGuestPolicy.setText(saved("guest_policy",     "Phải đăng ký trước 20:00 cùng ngày"));
+        try { spMaxWarning.setValue(Integer.parseInt(saved("max_warning_count", "3"))); }
+        catch (Exception ignored) {}
 
         JPanel grid = formGrid();
         addField(grid, "Giờ giới nghiêm (curfew)", tfCurfew);
@@ -218,7 +264,18 @@ public class SettingsPanel extends JPanel {
 
         JPanel btnRow = actionRow();
         JButton btn = UITheme.primaryBtn("💾 Lưu quy định");
-        btn.addActionListener(e -> showSuccess("Đã lưu quy định nội trú!"));
+        btn.addActionListener(e -> {
+            Map<String,String> m = new HashMap<>();
+            m.put("curfew_time",        tfCurfew.getText().trim());
+            m.put("guest_policy",       tfGuestPolicy.getText().trim());
+            m.put("max_warning_count",  spMaxWarning.getValue().toString());
+            if (DatabaseService.saveSettings(m)) {
+                savedSettings.putAll(m);
+                showSuccess("Đã lưu quy định nội trú!");
+            } else {
+                showError("Lưu thất bại! Kiểm tra kết nối database.");
+            }
+        });
         btnRow.add(btn);
 
         card.add(grid);
@@ -237,9 +294,9 @@ public class SettingsPanel extends JPanel {
         chkAutoInvoice  = styledCheckBox("Tự động tạo hóa đơn tháng cho tất cả sinh viên");
         chkAutoContract = styledCheckBox("Tự động nhắc nhở hợp đồng sắp hết hạn (trước 30 ngày)");
 
-        chkAutoNotify.setSelected(true);
-        chkAutoInvoice.setSelected(true);
-        chkAutoContract.setSelected(true);
+        chkAutoNotify.setSelected(  "true".equals(saved("auto_notify",           "true")));
+        chkAutoInvoice.setSelected( "true".equals(saved("auto_invoice",          "true")));
+        chkAutoContract.setSelected("true".equals(saved("auto_contract_reminder","true")));
 
         JPanel checks = new JPanel(new GridLayout(3, 1, 0, 10));
         checks.setOpaque(false);
@@ -251,7 +308,18 @@ public class SettingsPanel extends JPanel {
 
         JPanel btnRow = actionRow();
         JButton btn = UITheme.primaryBtn("💾 Lưu cài đặt tự động");
-        btn.addActionListener(e -> showSuccess("Đã lưu cài đặt tự động hóa!"));
+        btn.addActionListener(e -> {
+            Map<String,String> m = new HashMap<>();
+            m.put("auto_notify",            String.valueOf(chkAutoNotify.isSelected()));
+            m.put("auto_invoice",           String.valueOf(chkAutoInvoice.isSelected()));
+            m.put("auto_contract_reminder", String.valueOf(chkAutoContract.isSelected()));
+            if (DatabaseService.saveSettings(m)) {
+                savedSettings.putAll(m);
+                showSuccess("Đã lưu cài đặt tự động hóa!");
+            } else {
+                showError("Lưu thất bại! Kiểm tra kết nối database.");
+            }
+        });
         JButton btnTest = UITheme.outlineBtn("▶ Chạy thử ngay");
         btnTest.addActionListener(e -> JOptionPane.showMessageDialog(this,
             "✅ Đã chạy thử tác vụ tự động thành công!", "Thông báo",
@@ -281,8 +349,9 @@ public class SettingsPanel extends JPanel {
         stylePasswordField(pfNewPwd);
         stylePasswordField(pfConfirmPwd);
 
-        tfAdminName.setText("Admin SDMS");
-        tfAdminEmail.setText("admin@sdms.edu.vn");
+        // Tên hiển thị lấy từ user đang đăng nhập; email lấy từ settings đã lưu (vì User không có field email)
+        tfAdminName.setText(currentUser != null ? currentUser.getFullName() : saved("admin_display_name", "Admin SDMS"));
+        tfAdminEmail.setText(saved("admin_email", "admin@sdms.edu.vn"));
 
         JPanel infoGrid = formGrid();
         addField(infoGrid, "Tên hiển thị", tfAdminName);
@@ -302,7 +371,20 @@ public class SettingsPanel extends JPanel {
         JPanel btnRow = actionRow();
         JButton btnInfo = UITheme.primaryBtn("💾 Lưu thông tin");
         JButton btnPwd  = UITheme.warningBtn("🔒 Đổi mật khẩu");
-        btnInfo.addActionListener(e -> showSuccess("Đã cập nhật thông tin tài khoản!"));
+        btnInfo.addActionListener(e -> {
+            if (tfAdminName.getText().trim().isEmpty()) {
+                showWarn("Vui lòng nhập tên hiển thị!"); return;
+            }
+            Map<String,String> m = new HashMap<>();
+            m.put("admin_display_name", tfAdminName.getText().trim());
+            m.put("admin_email",        tfAdminEmail.getText().trim());
+            if (DatabaseService.saveSettings(m)) {
+                savedSettings.putAll(m);
+                showSuccess("Đã cập nhật thông tin tài khoản!");
+            } else {
+                showError("Lưu thất bại! Kiểm tra kết nối database.");
+            }
+        });
         btnPwd.addActionListener(e  -> changePassword());
         btnRow.add(btnInfo);
         btnRow.add(btnPwd);
@@ -316,11 +398,16 @@ public class SettingsPanel extends JPanel {
         return wrapCard(card);
     }
 
-    /** Xử lý đổi mật khẩu */
+    /** Xử lý đổi mật khẩu (thật, có xác thực mật khẩu hiện tại) */
     private void changePassword() {
+        if (currentUser == null) {
+            showWarn("Không xác định được tài khoản đang đăng nhập!"); return;
+        }
+        char[] currentPwd = pfCurrentPwd.getPassword();
         char[] newPwd     = pfNewPwd.getPassword();
         char[] confirmPwd = pfConfirmPwd.getPassword();
-        if (pfCurrentPwd.getPassword().length == 0) {
+
+        if (currentPwd.length == 0) {
             showWarn("Vui lòng nhập mật khẩu hiện tại!"); return;
         }
         if (newPwd.length < 6) {
@@ -329,15 +416,82 @@ public class SettingsPanel extends JPanel {
         if (!java.util.Arrays.equals(newPwd, confirmPwd)) {
             showWarn("Mật khẩu xác nhận không khớp!"); return;
         }
+
+        String currentHash = sha256(new String(currentPwd));
+        if (DatabaseService.authenticate(currentUser.getUsername(), currentHash) == null) {
+            showWarn("Mật khẩu hiện tại không đúng!"); return;
+        }
+
+        String newHash = sha256(new String(newPwd));
+        boolean ok = DatabaseService.updatePassword(currentUser.getUsername(), newHash);
+
+        // Xóa mật khẩu khỏi bộ nhớ ngay sau khi dùng (bảo mật)
+        java.util.Arrays.fill(currentPwd, '\0');
+        java.util.Arrays.fill(newPwd, '\0');
+        java.util.Arrays.fill(confirmPwd, '\0');
+
         pfCurrentPwd.setText("");
         pfNewPwd.setText("");
         pfConfirmPwd.setText("");
-        showSuccess("Đã đổi mật khẩu thành công!");
+
+        if (ok) {
+            showSuccess("Đã đổi mật khẩu thành công!");
+        } else {
+            showError("Đổi mật khẩu thất bại! Kiểm tra kết nối database.");
+        }
     }
 
-    /** Lưu toàn bộ cài đặt */
+    /** Hash SHA-256, đồng nhất với cách LoginFrame xác thực mật khẩu */
+    private String sha256(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(input.getBytes("UTF-8"));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (Exception e) { return ""; }
+    }
+
+    /** Lưu toàn bộ cài đặt (nút header) */
     private void saveAllSettings() {
-        showSuccess("Đã lưu toàn bộ cài đặt hệ thống!");
+        Map<String,String> m = new HashMap<>();
+        // Section 1
+        if (tfDormName    != null) m.put("dorm_name",     tfDormName.getText().trim());
+        if (tfAddress     != null) m.put("dorm_address",  tfAddress.getText().trim());
+        if (tfPhone       != null) m.put("dorm_phone",    tfPhone.getText().trim());
+        if (tfEmail       != null) m.put("dorm_email",    tfEmail.getText().trim());
+        if (tfDirector    != null) m.put("dorm_director", tfDirector.getText().trim());
+        if (tfAcademicYear!= null) m.put("academic_year", tfAcademicYear.getText().trim());
+        if (tfSemester    != null) m.put("semester",      tfSemester.getText().trim());
+        // Section 2
+        if (tfElecPrice   != null) m.put("electric_unit_price", tfElecPrice.getText().replaceAll("[^0-9]",""));
+        if (tfWaterPrice  != null) m.put("water_unit_price",    tfWaterPrice.getText().replaceAll("[^0-9]",""));
+        if (tfRoomFee4    != null) m.put("room_fee_4",          tfRoomFee4.getText().replaceAll("[^0-9]",""));
+        if (tfRoomFee6    != null) m.put("room_fee_6",          tfRoomFee6.getText().replaceAll("[^0-9]",""));
+        // Section 3
+        if (tfCurfew      != null) m.put("curfew_time",       tfCurfew.getText().trim());
+        if (tfGuestPolicy != null) m.put("guest_policy",      tfGuestPolicy.getText().trim());
+        if (spMaxWarning  != null) m.put("max_warning_count", spMaxWarning.getValue().toString());
+        // Section 4
+        if (chkAutoNotify   != null) m.put("auto_notify",            String.valueOf(chkAutoNotify.isSelected()));
+        if (chkAutoInvoice  != null) m.put("auto_invoice",           String.valueOf(chkAutoInvoice.isSelected()));
+        if (chkAutoContract != null) m.put("auto_contract_reminder", String.valueOf(chkAutoContract.isSelected()));
+        // Section 5 (chỉ tên hiển thị & email, mật khẩu xử lý riêng qua nút Đổi mật khẩu)
+        if (tfAdminName  != null) m.put("admin_display_name", tfAdminName.getText().trim());
+        if (tfAdminEmail != null) m.put("admin_email",         tfAdminEmail.getText().trim());
+
+        if (DatabaseService.saveSettings(m)) {
+            savedSettings.putAll(m);
+            showSuccess("Đã lưu toàn bộ cài đặt hệ thống!");
+        } else {
+            showError("Lưu thất bại! Một số cài đặt có thể chưa được ghi vào database.");
+        }
+    }
+
+    /** Lấy giá trị đã lưu trong DB, fallback về defaultVal nếu chưa có */
+    private String saved(String key, String defaultVal) {
+        String v = savedSettings.get(key);
+        return (v != null && !v.isBlank()) ? v : defaultVal;
     }
 
     // ── Builder helpers ───────────────────────────────────────────
@@ -449,6 +603,10 @@ public class SettingsPanel extends JPanel {
 
     private void showWarn(String msg) {
         JOptionPane.showMessageDialog(this, "⚠ " + msg, "Lưu ý", JOptionPane.WARNING_MESSAGE);
+    }
+
+    private void showError(String msg) {
+        JOptionPane.showMessageDialog(this, "❌ " + msg, "Lỗi", JOptionPane.ERROR_MESSAGE);
     }
 
     private void showSuccess(String msg) {
