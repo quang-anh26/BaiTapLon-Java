@@ -304,7 +304,7 @@ public class RoomPanel extends JPanel {
 
     private void showRoomDetail(Room room, Color accentColor, Color textColor) {
         JDialog dlg = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Chi tiết phòng", true);
-        dlg.setSize(360, 340);
+        dlg.setSize(360, 380);
         dlg.setLocationRelativeTo(this);
         dlg.setUndecorated(false);
 
@@ -325,7 +325,7 @@ public class RoomPanel extends JPanel {
         header.setOpaque(false);
         header.setBorder(new EmptyBorder(12, 18, 12, 18));
 
-        JLabel titleLbl = new JLabel("🚪  " + room.getName());
+        JLabel titleLbl = new JLabel("🚪  " + room.getId());
         titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
         titleLbl.setForeground(Color.WHITE);
         JLabel statusLbl = new JLabel(room.getStatusText());
@@ -348,7 +348,7 @@ public class RoomPanel extends JPanel {
 
         int available = room.getCapacity() - room.getOccupied();
         Object[][] info = {
-            {"Mã phòng",    room.getId()},
+            {"Tên phòng",   room.getId()},
             {"Loại phòng",  room.getType()},
             {"Tầng",        "Tầng " + room.getFloor()},
             {"Sức chứa",    room.getCapacity() + " người"},
@@ -370,13 +370,45 @@ public class RoomPanel extends JPanel {
             body.add(v, g);
         }
 
-        // Close button
+        // Footer: nút Xóa phòng (trái) + Đóng (phải)
+        JButton btnDelete = UITheme.outlineBtn("🗑 Xóa phòng");
+        btnDelete.setForeground(UITheme.DANGER);
+        btnDelete.addActionListener(e -> {
+            int confirm = JOptionPane.showConfirmDialog(
+                dlg,
+                "Bạn có chắc chắn muốn xóa phòng " + room.getId() + " không?",
+                "Xác nhận xóa phòng",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+            );
+            if (confirm == JOptionPane.YES_OPTION) {
+                if (DatabaseService.deleteRoom(room.getId())) {
+                    JOptionPane.showMessageDialog(dlg, "✅ Đã xóa phòng " + room.getId() + " thành công!", "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                    dlg.dispose();
+                    applyFilter();
+                } else {
+                    JOptionPane.showMessageDialog(dlg, "❌ Xóa phòng thất bại!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
         JButton btnClose = UITheme.primaryBtn("Đóng");
         btnClose.addActionListener(e -> dlg.dispose());
-        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 16, 8));
+
+        JPanel footer = new JPanel(new BorderLayout());
         footer.setBackground(UITheme.BG_LIGHT);
         footer.setBorder(new MatteBorder(1, 0, 0, 0, UITheme.BORDER));
-        footer.add(btnClose);
+
+        JPanel footerLeft = new JPanel(new FlowLayout(FlowLayout.LEFT, 16, 8));
+        footerLeft.setOpaque(false);
+        footerLeft.add(btnDelete);
+
+        JPanel footerRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 16, 8));
+        footerRight.setOpaque(false);
+        footerRight.add(btnClose);
+
+        footer.add(footerLeft,  BorderLayout.WEST);
+        footer.add(footerRight, BorderLayout.EAST);
 
         root.add(header, BorderLayout.NORTH);
         root.add(body,   BorderLayout.CENTER);
@@ -406,13 +438,11 @@ public class RoomPanel extends JPanel {
         content.setBackground(UITheme.WHITE);
 
         JTextField tfId       = UITheme.textField("VD: A501");
-        JTextField tfName     = UITheme.textField("VD: Phòng A501");
         JComboBox<String> cbType = UITheme.comboBox(new String[]{"4 người", "6 người"});
         JTextField tfFloor    = UITheme.textField("VD: 5");
         JTextField tfCapacity = UITheme.textField("4");
 
-        content.add(label("Mã phòng *"));   content.add(tfId);
-        content.add(label("Tên phòng *"));  content.add(tfName);
+        content.add(label("Tên phòng *"));  content.add(tfId);
         content.add(label("Loại phòng"));   content.add(cbType);
         content.add(label("Tầng *"));       content.add(tfFloor);
         content.add(label("Sức chứa *"));   content.add(tfCapacity);
@@ -425,15 +455,14 @@ public class RoomPanel extends JPanel {
         btnCancel.addActionListener(e -> dlg.dispose());
         btnSave.addActionListener(e -> {
             String id = tfId.getText().trim();
-            String name = tfName.getText().trim();
-            if (id.isEmpty() || name.isEmpty()) {
-                JOptionPane.showMessageDialog(dlg, "⚠ Vui lòng nhập đủ Mã và Tên phòng!", "Lưu ý", JOptionPane.WARNING_MESSAGE);
+            if (id.isEmpty()) {
+                JOptionPane.showMessageDialog(dlg, "⚠ Vui lòng nhập Tên phòng!", "Lưu ý", JOptionPane.WARNING_MESSAGE);
                 return;
             }
             try {
                 int floor    = Integer.parseInt(tfFloor.getText().trim());
                 int capacity = Integer.parseInt(tfCapacity.getText().trim());
-                Room r = new Room(id, name, cbType.getSelectedItem().toString(), floor, capacity, 0);
+                Room r = new Room(id, id, cbType.getSelectedItem().toString(), floor, capacity, 0);
                 if (DatabaseService.addRoom(r)) {
                     JOptionPane.showMessageDialog(dlg, "✅ Đã thêm phòng " + id + " thành công!", "Thành công", JOptionPane.INFORMATION_MESSAGE);
                     dlg.dispose();

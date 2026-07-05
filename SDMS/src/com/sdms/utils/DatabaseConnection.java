@@ -14,7 +14,7 @@ public class DatabaseConnection {
     // ║ SỬA 4 DÒNG NÀY CHO KHỚP VỚI MÁY BẠN ║
     // ╚══════════════════════════════════════════════════════════╝
 
-    private static final String SERVER = "QuangAnh"; // hoặc ".\SQLEXPRESS" / "127.0.0.1"
+    private static final String SERVER = "LAPTOP-12OGD3V1"; // hoặc ".\SQLEXPRESS" / "127.0.0.1"
     private static final String DATABASE = "quanly-ktx"; // tên DB trong ktx.sql
     private static final String USERNAME = "sdms"; // login vừa tạo trong ktx.sql
     private static final String PASSWORD = "123456"; // mật khẩu trong ktx.sql

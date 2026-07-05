@@ -2,9 +2,6 @@
 EXEC sp_MSforeachtable 'DROP TABLE ?'
 
 
-
-
-
 ALTER TABLE PendingAccounts ADD password VARCHAR(255) DEFAULT '';
 
 SELECT @@SERVERNAME
@@ -328,7 +325,6 @@ GO
 -- ================================================================
 INSERT INTO Students (id, full_name, birth_date, gender, id_card, phone, email, university, faculty, class_name, address, room_id, status) VALUES
 
-=======
 
 ('SV001249', N'Nguyễn Văn An',     '15/03/2004', N'Nam', '079204001234', '0901234001', 'an.nguyen01@gmail.com',  N'ĐH Bách Khoa Hà Nội', N'CNTT',        'CNTT01-K65', N'Nam Định',  'P101', N'Đang ở'),
 ('SV001250', N'Trần Thị Bình',     '22/07/2004', N'Nữ',  '079204001235', '0901234002', 'binh.tran02@gmail.com',  N'ĐH Bách Khoa Hà Nội', N'Điện - Điện tử', 'DTVT01-K65', N'Hà Nam', 'P101', N'Đang ở'),
@@ -351,7 +347,7 @@ INSERT INTO Students (id, full_name, birth_date, gender, id_card, phone, email, 
 ('SV001267', N'Hồ Văn Việt',       '16/04/2004', N'Nam', '079204001252',   '0901234019', 'viet.ho19@gmail.com',   N'ĐH Bách Khoa Hà Nội', N'CNTT',       'CNTT07-K65', N'Sơn La', NULL, N'Chờ duyệt'),
 ('SV001268', N'Lương Thị Xuân',    '07/06/2004', N'Nữ',  '079204001253',   '0901234020', 'xuan.luong20@gmail.com',N'ĐH Bách Khoa Hà Nội', N'Hóa học',    'HH03-K65',   N'Lào Cai', NULL, N'Mới đăng ký');
 GO
->>>>>>> f3a8b74b92a5040d57d3f1991f4adf0ff7f12b53
+
 
 -- ================================================================
 -- 3. USERS (tài khoản sinh viên — password mặc định "123456" SHA-256)
