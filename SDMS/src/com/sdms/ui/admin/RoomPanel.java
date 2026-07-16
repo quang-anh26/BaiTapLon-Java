@@ -336,7 +336,26 @@ public class RoomPanel extends JPanel {
         headerText.setOpaque(false);
         headerText.add(titleLbl);
         headerText.add(statusLbl);
-        header.add(headerText, BorderLayout.CENTER);
+
+        JButton btnMembers = new JButton("👥 Thành Viên  ");
+        btnMembers.setFont(UITheme.FONT_SMALL);
+        btnMembers.setForeground(Color.WHITE);
+        btnMembers.setBackground(new Color(255, 255, 255, 60));
+        btnMembers.setOpaque(false);
+        btnMembers.setContentAreaFilled(false);
+        btnMembers.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(255, 255, 255, 150), 1, true),
+            BorderFactory.createEmptyBorder(4, 10, 4, 10)
+        ));
+        btnMembers.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnMembers.addActionListener(e -> showMembersDialog(room, dlg));
+
+        JPanel headerRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        headerRight.setOpaque(false);
+        headerRight.add(btnMembers);
+
+        header.add(headerText,  BorderLayout.CENTER);
+        header.add(headerRight, BorderLayout.EAST);
 
         // Body info
         JPanel body = new JPanel(new GridBagLayout());
@@ -491,5 +510,90 @@ public class RoomPanel extends JPanel {
         l.setFont(UITheme.FONT_LABEL);
         l.setForeground(UITheme.TEXT_SECONDARY);
         return l;
+    }
+
+    /** Dialog xem thông tin các thành viên đang ở trong phòng */
+    private void showMembersDialog(Room room, JDialog parent) {
+        JDialog dlg2 = new JDialog(parent, "Thành viên phòng " + room.getId(), true);
+        dlg2.setSize(700, 380);
+        dlg2.setLocationRelativeTo(parent);
+
+        // Lấy sinh viên đang ở trong phòng này
+        java.util.List<com.sdms.model.Student> members = DatabaseService.getAllStudents().stream()
+            .filter(s -> room.getId().equals(s.getRoomId()))
+            .collect(java.util.stream.Collectors.toList());
+
+        JPanel root = new JPanel(new BorderLayout());
+        root.setBackground(UITheme.WHITE);
+
+        // Header
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(UITheme.PRIMARY);
+        header.setBorder(new EmptyBorder(12, 18, 12, 18));
+        JLabel title = new JLabel("👥  Danh sách thành viên — Phòng " + room.getId()
+            + "  (" + members.size() + "/" + room.getCapacity() + " người)");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        title.setForeground(Color.WHITE);
+        header.add(title, BorderLayout.WEST);
+
+        // Table
+        String[] cols = {"Mã SV", "Họ và tên", "Giới tính", "Ngày sinh", "SĐT", "Email", "Khoa", "Trạng thái"};
+        javax.swing.table.DefaultTableModel tModel = new javax.swing.table.DefaultTableModel(null, cols) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+
+        if (members.isEmpty()) {
+            // Không có ai
+        } else {
+            for (com.sdms.model.Student s : members) {
+                tModel.addRow(new Object[]{
+                    s.getId(), s.getFullName(), s.getGender(), s.getBirthDate(),
+                    s.getPhone(), s.getEmail(), s.getFaculty(), s.getStatus()
+                });
+            }
+        }
+
+        JTable table = new JTable(tModel);
+        table.setRowHeight(36);
+        table.setShowVerticalLines(false);
+        table.setShowHorizontalLines(true);
+        table.setGridColor(UITheme.BORDER);
+        table.setBackground(UITheme.WHITE);
+        table.setSelectionBackground(UITheme.PRIMARY_LIGHT);
+        table.getTableHeader().setFont(UITheme.FONT_LABEL);
+        table.getTableHeader().setBackground(UITheme.BG_SECONDARY);
+        table.getTableHeader().setForeground(UITheme.TEXT_SECONDARY);
+
+        JScrollPane scroll = new JScrollPane(table);
+        scroll.setBorder(BorderFactory.createLineBorder(UITheme.BORDER, 1));
+        scroll.getViewport().setBackground(UITheme.WHITE);
+
+        // Thông báo nếu phòng trống
+        JPanel center = new JPanel(new BorderLayout());
+        center.setBackground(UITheme.WHITE);
+        center.setBorder(new EmptyBorder(12, 16, 12, 16));
+        if (members.isEmpty()) {
+            JLabel empty = new JLabel("Phòng hiện chưa có sinh viên nào đang ở.", SwingConstants.CENTER);
+            empty.setFont(UITheme.FONT_BODY);
+            empty.setForeground(UITheme.TEXT_MUTED);
+            center.add(empty, BorderLayout.CENTER);
+        } else {
+            center.add(scroll, BorderLayout.CENTER);
+        }
+
+        // Footer
+        JButton btnClose = UITheme.primaryBtn("Đóng");
+        btnClose.addActionListener(e -> dlg2.dispose());
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 16, 8));
+        footer.setBackground(UITheme.BG_LIGHT);
+        footer.setBorder(new MatteBorder(1, 0, 0, 0, UITheme.BORDER));
+        footer.add(btnClose);
+
+        root.add(header, BorderLayout.NORTH);
+        root.add(center, BorderLayout.CENTER);
+        root.add(footer, BorderLayout.SOUTH);
+
+        dlg2.setContentPane(root);
+        dlg2.setVisible(true);
     }
 }
