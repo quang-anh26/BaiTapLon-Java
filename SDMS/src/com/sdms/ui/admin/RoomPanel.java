@@ -89,7 +89,7 @@ public class RoomPanel extends JPanel {
         long full    = DatabaseService.getAllRooms().stream().filter(r -> r.getStatus()==Room.Status.FULL).count();
 
         row.add(miniStat("Tổng số phòng", total, UITheme.PRIMARY));
-        row.add(miniStat("Còn chỗ",       empty,  UITheme.SUCCESS));
+        row.add(miniStat("Trống phòng",       empty,  UITheme.SUCCESS));
         row.add(miniStat("Gần đầy",       near,   UITheme.WARNING));
         row.add(miniStat("Đã đầy",        full,   UITheme.DANGER));
         return row;
@@ -115,7 +115,7 @@ public class RoomPanel extends JPanel {
         // Legend
         JPanel legend = new JPanel(new FlowLayout(FlowLayout.LEFT, 16, 0));
         legend.setOpaque(false);
-        legend.add(legendItem("Còn chỗ",     UITheme.SUCCESS));
+        legend.add(legendItem("Trống phòng",     UITheme.SUCCESS));
         legend.add(legendItem("Gần đầy ≥50%",UITheme.WARNING));
         legend.add(legendItem("Đã đầy",      UITheme.DANGER));
         legend.add(legendItem("Bảo trì",     UITheme.TEXT_MUTED));
@@ -124,7 +124,7 @@ public class RoomPanel extends JPanel {
         JPanel filters = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         filters.setOpaque(false);
         ButtonGroup filterGroup = new ButtonGroup();
-        String[] filterOpts = {"Tất cả","Còn chỗ","Gần đầy","Đã đầy","Phòng 4 người","Phòng 6 người"};
+        String[] filterOpts = {"Tất cả","Trống phòng","Gần đầy","Đã đầy","Phòng 4 người","Phòng 6 người"};
         for (String opt : filterOpts) {
             JToggleButton btn = filterBtn(opt);
             if (opt.equals(filterStatus)) {
@@ -196,7 +196,7 @@ public class RoomPanel extends JPanel {
     private void applyFilter() {
         List<Room> filtered = DatabaseService.getAllRooms().stream()
             .filter(r -> switch(filterStatus) {
-                case "Còn chỗ"       -> r.getStatus() == Room.Status.AVAILABLE;
+                case "Trống phòng"       -> r.getStatus() == Room.Status.AVAILABLE;
                 case "Gần đầy"       -> r.getStatus() == Room.Status.NEARLY_FULL;
                 case "Đã đầy"        -> r.getStatus() == Room.Status.FULL;
                 case "Phòng 4 người" -> r.getCapacity() == 4;
