@@ -532,7 +532,7 @@ public class RoomPanel extends JPanel {
         header.setBorder(new EmptyBorder(12, 18, 12, 18));
         JLabel title = new JLabel("👥  Danh sách thành viên — Phòng " + room.getId()
             + "  (" + members.size() + "/" + room.getCapacity() + " người)");
-        title.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+        title.setFont(new Font("Segoe UI", Font.BOLD, 14));
         title.setForeground(Color.WHITE);
         header.add(title, BorderLayout.WEST);
 
