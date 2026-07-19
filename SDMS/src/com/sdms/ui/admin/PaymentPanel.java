@@ -196,7 +196,7 @@ public class PaymentPanel extends JPanel {
         scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 
         JLabel hint = new JLabel("💡 Double-click vào hóa đơn chưa thanh toán để xác nhận thanh toán");
-        hint.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        hint.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 11));
         hint.setForeground(UITheme.TEXT_MUTED);
         hint.setBorder(new EmptyBorder(4, 0, 0, 0));
 
@@ -214,7 +214,7 @@ public class PaymentPanel extends JPanel {
     // ── Summary cards ─────────────────────────────────────────────
     private JLabel cardValueLabel(Color color) {
         JLabel l = new JLabel("—");
-        l.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        l.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
         l.setForeground(color);
         return l;
     }
@@ -223,7 +223,7 @@ public class PaymentPanel extends JPanel {
         JPanel card = UITheme.card();
         card.setLayout(new BorderLayout(10, 0));
         JLabel ico = new JLabel(icon);
-        ico.setFont(new Font("Segoe UI", Font.PLAIN, 28));
+        ico.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 28));
         JPanel info = new JPanel(new GridLayout(2, 1));
         info.setOpaque(false);
         JLabel lbl = new JLabel(label);

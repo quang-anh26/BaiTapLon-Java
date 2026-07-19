@@ -192,13 +192,13 @@ public class LoginFrame extends JFrame {
 
             // ── Tiêu đề + phụ đề dùng ShadowLabel để luôn nổi rõ trên mọi nền ảnh ──
             JLabel lblTitle = new ShadowLabel("<html><b>Student Dormitory<br>Management System</b></html>");
-            lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 26));
+            lblTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 26));
             lblTitle.setForeground(Color.WHITE);
             lblTitle.setBounds(75, 180, 420, 70);
 
             JLabel lblSub = new ShadowLabel(
                     "<html>Quản lý ký túc xá sinh viên thông minh<br>hiện đại · nhanh chóng · tiện lợi</html>");
-            lblSub.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+            lblSub.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 15));
             lblSub.setForeground(new Color(255, 255, 255, 230));
             lblSub.setBounds(75, 255, 420, 50);
 
@@ -267,7 +267,7 @@ public class LoginFrame extends JFrame {
         gbc.insets = new Insets(0, 0, 8, 0);
 
         JLabel welcome = new JLabel("Chào mừng trở lại 👋");
-        welcome.setFont(new Font("Segoe UI", Font.BOLD, 26));
+        welcome.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 26));
         welcome.setForeground(UITheme.TEXT_PRIMARY);
         panel.add(welcome, gbc);
 
@@ -362,7 +362,7 @@ public class LoginFrame extends JFrame {
         gbc.insets = new Insets(0, 0, 10, 0);
         JButton btnLogin = UITheme.primaryBtn("  Đăng nhập  ");
         btnLogin.setPreferredSize(new Dimension(300, 44));
-        btnLogin.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btnLogin.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
         btnLogin.addActionListener(e -> doLogin());
         panel.add(btnLogin, gbc);
 
@@ -377,7 +377,7 @@ public class LoginFrame extends JFrame {
 
         btnRegister = UITheme.outlineBtn("  Đăng ký tài khoản  ");
         btnRegister.setPreferredSize(new Dimension(300, 38));
-        btnRegister.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        btnRegister.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         btnRegister.addActionListener(e -> doRegister());
 
         registerCard.add(emptyCard, "HIDDEN");
@@ -582,7 +582,7 @@ public class LoginFrame extends JFrame {
 
         JButton btnBack = UITheme.outlineBtn("← Quay lại");
         btnBack.setPreferredSize(new Dimension(140, 36));
-        btnBack.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        btnBack.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         btnBack.addActionListener(e -> dialog.dispose());
         footer.add(btnBack);
 

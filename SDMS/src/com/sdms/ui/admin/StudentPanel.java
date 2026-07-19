@@ -191,15 +191,15 @@ public class StudentPanel extends JPanel {
         btnRow1.setOpaque(false); btnRow1.setAlignmentX(LEFT_ALIGNMENT);
         btnRow1.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
 
-        JButton btnAdd    = UITheme.primaryBtn("□ Thêm");
-        JButton btnEdit   = UITheme.warningBtn("□ Sửa");
-        JButton btnDelete = UITheme.dangerBtn("□ Xóa");
-        JButton btnReset  = UITheme.outlineBtn("□ Làm mới");
+        JButton btnAdd    = UITheme.primaryBtn("➕ Thêm");
+        JButton btnEdit   = UITheme.warningBtn("✏ Sửa");
+        JButton btnDelete = UITheme.dangerBtn("🗑 Xóa");
+        JButton btnReset  = UITheme.outlineBtn("🔄 Làm mới");
 
         JPanel btnRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         btnRow2.setOpaque(false); btnRow2.setAlignmentX(LEFT_ALIGNMENT);
         btnRow2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        JButton btnExcel = UITheme.successBtn("□ Xuất Excel");
+        JButton btnExcel = UITheme.successBtn("📊 Xuất Excel");
 
         btnRow1.add(btnAdd); btnRow1.add(btnEdit); btnRow1.add(btnDelete); btnRow1.add(btnReset);
         btnRow2.add(btnExcel);

@@ -95,7 +95,7 @@ public class AdminFrame extends JFrame {
         JPanel brandText = new JPanel(new GridLayout(2, 1));
         brandText.setOpaque(false);
         JLabel lblBrand = new JLabel("SDMS");
-        lblBrand.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        lblBrand.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
         lblBrand.setForeground(Color.WHITE);
         JLabel lblSub = new JLabel("Admin Portal");
         lblSub.setFont(UITheme.FONT_TINY);
@@ -172,7 +172,7 @@ public class AdminFrame extends JFrame {
 
     private JLabel sectionLabel(String text) {
         JLabel lbl = new JLabel(text);
-        lbl.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        lbl.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
         lbl.setForeground(new Color(255, 255, 255, 80));
         lbl.setBorder(new EmptyBorder(10, 18, 4, 0));
         lbl.setAlignmentX(LEFT_ALIGNMENT);
@@ -302,7 +302,7 @@ public class AdminFrame extends JFrame {
 
         // Notification bell
         JLabel bell = new JLabel("🔔");
-        bell.setFont(new Font("Segoe UI", Font.PLAIN, 18));
+        bell.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 18));
         bell.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         // Avatar
@@ -314,7 +314,7 @@ public class AdminFrame extends JFrame {
                 g2.setColor(UITheme.PRIMARY);
                 g2.fillOval(0, 0, getWidth(), getHeight());
                 g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Segoe UI", Font.BOLD, 13));
+                g2.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
                 FontMetrics fm = g2.getFontMetrics();
                 String initials = "AD";
                 g2.drawString(initials, (getWidth() - fm.stringWidth(initials)) / 2,

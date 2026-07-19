@@ -68,6 +68,7 @@ public class AccountManagementPanel extends JPanel {
         lblPendingBadge.setBackground(UITheme.WARNING);
         lblPendingBadge.setOpaque(true);
         lblPendingBadge.setBorder(new EmptyBorder(2, 6, 2, 6));
+        lblPendingBadge.setVisible(pending > 0); // ẩn hẳn khi không có đơn chờ duyệt, tránh hiện ô màu trống
 
         JPanel titleRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         titleRow.setOpaque(false);
@@ -115,7 +116,7 @@ public class AccountManagementPanel extends JPanel {
         JPanel card = UITheme.card();
         card.setLayout(new BorderLayout());
         JLabel num = new JLabel(String.valueOf(val), SwingConstants.CENTER);
-        num.setFont(new Font("Segoe UI", Font.BOLD, 26));
+        num.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 26));
         num.setForeground(color);
         JLabel label = new JLabel(lbl, SwingConstants.CENTER);
         label.setFont(UITheme.FONT_SMALL);
@@ -206,8 +207,15 @@ public class AccountManagementPanel extends JPanel {
         btn.addActionListener(e -> {
             filterStatus = text;
             refreshTable();
-            // repaint tất cả filter btn để màu cập nhật
-            for (Component c : parent.getComponents()) c.repaint();
+            // Cập nhật lại MÀU CHỮ cho tất cả filter btn theo trạng thái active mới, rồi mới repaint
+            for (Component c : parent.getComponents()) {
+                if (c instanceof JButton) {
+                    JButton b = (JButton) c;
+                    boolean isActive = b.getText().equals(filterStatus);
+                    b.setForeground(isActive ? Color.WHITE : UITheme.TEXT_SECONDARY);
+                }
+                c.repaint();
+            }
         });
         return btn;
     }
@@ -311,6 +319,7 @@ public class AccountManagementPanel extends JPanel {
             long pending = DatabaseService.getAllPendingAccounts().stream()
                 .filter(a -> a.getStatus() == PendingAccount.Status.PENDING).count();
             lblPendingBadge.setText(pending > 0 ? "  " + pending + " chờ duyệt  " : "");
+            lblPendingBadge.setVisible(pending > 0);
         }
     }
 

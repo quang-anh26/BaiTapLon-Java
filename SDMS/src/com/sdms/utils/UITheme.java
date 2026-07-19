@@ -36,14 +36,14 @@ public class UITheme {
     public static final Color YELLOW_TEXT = new Color(0x854D0E);
 
     // Fonts
-    public static final Font FONT_TITLE = new Font("Segoe UI", Font.BOLD, 20);
-    public static final Font FONT_H2 = new Font("Segoe UI", Font.BOLD, 16);
-    public static final Font FONT_H3 = new Font("Segoe UI", Font.BOLD, 14);
-    public static final Font FONT_BODY = new Font("Segoe UI", Font.PLAIN, 13);
-    public static final Font FONT_SMALL = new Font("Segoe UI", Font.PLAIN, 12);
-    public static final Font FONT_TINY = new Font("Segoe UI", Font.PLAIN, 11);
-    public static final Font FONT_BOLD = new Font("Segoe UI", Font.BOLD, 13);
-    public static final Font FONT_LABEL = new Font("Segoe UI", Font.BOLD, 11);
+    public static final Font FONT_TITLE = new Font(Font.SANS_SERIF, Font.BOLD, 20);
+    public static final Font FONT_H2 = new Font(Font.SANS_SERIF, Font.BOLD, 16);
+    public static final Font FONT_H3 = new Font(Font.SANS_SERIF, Font.BOLD, 14);
+    public static final Font FONT_BODY = new Font(Font.SANS_SERIF, Font.PLAIN, 13);
+    public static final Font FONT_SMALL = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+    public static final Font FONT_TINY = new Font(Font.SANS_SERIF, Font.PLAIN, 11);
+    public static final Font FONT_BOLD = new Font(Font.SANS_SERIF, Font.BOLD, 13);
+    public static final Font FONT_LABEL = new Font(Font.SANS_SERIF, Font.BOLD, 11);
 
     public static final int SIDEBAR_WIDTH = 220;
     public static final int HEADER_HEIGHT = 58;

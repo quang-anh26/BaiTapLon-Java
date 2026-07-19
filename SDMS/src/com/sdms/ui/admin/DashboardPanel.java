@@ -35,7 +35,7 @@ public class DashboardPanel extends JPanel {
         root.setBorder(new EmptyBorder(20, 20, 20, 20));
 
         JLabel title = new JLabel("Dashboard");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        title.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 22));
         title.setForeground(UITheme.TEXT_PRIMARY);
         title.setAlignmentX(LEFT_ALIGNMENT);
 
@@ -117,14 +117,14 @@ public class DashboardPanel extends JPanel {
         };
         iconBox.setOpaque(false);
         JLabel ico = new JLabel(icon, SwingConstants.CENTER);
-        ico.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        ico.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 16));
         iconBox.setLayout(new BorderLayout());
         iconBox.add(ico);
         top.add(iconBox);
         card.add(top, BorderLayout.NORTH);
 
         JLabel num = new JLabel(value);
-        num.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        num.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
         num.setForeground(UITheme.TEXT_PRIMARY);
         card.add(num, BorderLayout.CENTER);
 
@@ -426,7 +426,7 @@ public class DashboardPanel extends JPanel {
                     g2.setColor(c);
                     g2.fill(new RoundRectangle2D.Float(x, h - barH, barW, barH, 3, 3));
                     g2.setColor(UITheme.TEXT_MUTED);
-                    g2.setFont(new Font("Segoe UI", Font.PLAIN, 8));
+                    g2.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 8));
                     FontMetrics fm = g2.getFontMetrics();
                     g2.drawString(lbls[i], x + (barW - fm.stringWidth(lbls[i])) / 2, h + 16);
                 }

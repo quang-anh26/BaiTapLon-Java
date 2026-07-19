@@ -201,18 +201,18 @@ public class ViolationPanel extends JPanel {
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         btnRow.setOpaque(false); btnRow.setAlignmentX(LEFT_ALIGNMENT);
         btnRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        JButton btnAdd    = UITheme.primaryBtn("□ Thêm");
-        JButton btnEdit   = UITheme.warningBtn("□ Sửa");
-        JButton btnDelete = UITheme.dangerBtn("□ Xóa");
-        JButton btnReset  = UITheme.outlineBtn("□ Làm mới");
+        JButton btnAdd    = UITheme.primaryBtn("➕ Thêm");
+        JButton btnEdit   = UITheme.warningBtn("✏ Sửa");
+        JButton btnDelete = UITheme.dangerBtn("🗑 Xóa");
+        JButton btnReset  = UITheme.outlineBtn("🔄 Làm mới");
         btnRow.add(btnAdd); btnRow.add(btnEdit); btnRow.add(btnDelete); btnRow.add(btnReset);
 
         // Nút xử lý vi phạm
         JPanel btnRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         btnRow2.setOpaque(false); btnRow2.setAlignmentX(LEFT_ALIGNMENT);
         btnRow2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        JButton btnProcess = UITheme.successBtn("□ Đánh dấu đã xử lý");
-        JButton btnExport  = UITheme.purpleBtn("□ Xuất báo cáo");
+        JButton btnProcess = UITheme.successBtn("✅ Đánh dấu đã xử lý");
+        JButton btnExport  = UITheme.purpleBtn("📤 Xuất báo cáo");
         btnRow2.add(btnProcess); btnRow2.add(btnExport);
 
         // Gắn sự kiện
@@ -266,7 +266,7 @@ public class ViolationPanel extends JPanel {
         );
         cbStatusFilter.setPreferredSize(new Dimension(150, 36));
 
-        JButton btnRefresh = UITheme.outlineBtn("□ Làm mới");
+        JButton btnRefresh = UITheme.outlineBtn("🔄 Làm mới");
         btnRefresh.setPreferredSize(new Dimension(100, 36));
 
         toolbar.add(tfSearch);

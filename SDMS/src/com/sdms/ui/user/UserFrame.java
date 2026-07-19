@@ -72,7 +72,7 @@ public class UserFrame extends JFrame {
                 g2.setPaint(new GradientPaint(0, 0, UITheme.PRIMARY, getWidth(), getHeight(), UITheme.PURPLE));
                 g2.fillOval(0, 0, getWidth(), getHeight());
                 g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Segoe UI", Font.BOLD, 22));
+                g2.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 22));
                 FontMetrics fm = g2.getFontMetrics();
                 String init = initials(currentUser.getFullName());
                 g2.drawString(init,
@@ -86,7 +86,7 @@ public class UserFrame extends JFrame {
         avt.setAlignmentX(CENTER_ALIGNMENT);
 
         JLabel name = new JLabel(currentUser.getFullName(), SwingConstants.CENTER);
-        name.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        name.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
         name.setForeground(Color.WHITE);
         name.setAlignmentX(CENTER_ALIGNMENT);
         name.setBorder(new EmptyBorder(10, 0, 2, 0));
@@ -274,7 +274,7 @@ public class UserFrame extends JFrame {
         right.setOpaque(false);
         JLabel ok   = UITheme.badge("✓  Hợp đồng còn hiệu lực", UITheme.SUCCESS_BG, UITheme.SUCCESS_TEXT);
         JLabel bell = new JLabel("🔔");
-        bell.setFont(new Font("Segoe UI", Font.PLAIN, 18));
+        bell.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 18));
         right.add(ok);
         right.add(bell);
 

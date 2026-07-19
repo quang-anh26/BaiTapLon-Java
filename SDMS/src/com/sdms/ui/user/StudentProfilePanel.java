@@ -119,7 +119,7 @@ public class StudentProfilePanel extends JPanel {
                 g2.setPaint(gp);
                 g2.fillOval(0, 0, getWidth(), getHeight());
                 g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Segoe UI", Font.BOLD, 32));
+                g2.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 32));
                 FontMetrics fm = g2.getFontMetrics();
                 String init = initials(student != null ? student.getFullName()
                     : currentUser.getFullName());

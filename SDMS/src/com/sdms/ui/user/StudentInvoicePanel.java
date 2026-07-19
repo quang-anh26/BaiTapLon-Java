@@ -156,7 +156,7 @@ public class StudentInvoicePanel extends JPanel {
         textPanel.add(lblDue);
 
         JLabel lblTotal = new JLabel(fmt(currentInvoice.getTotal()));
-        lblTotal.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        lblTotal.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 24));
         lblTotal.setForeground(fg);
         lblTotal.setHorizontalAlignment(SwingConstants.RIGHT);
 

@@ -137,7 +137,7 @@ public class StudentDashboardPanel extends JPanel {
         String greet = getGreeting();
 
         JLabel lblGreet = new JLabel(greet + ", " + name + " 👋");
-        lblGreet.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        lblGreet.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
         lblGreet.setForeground(Color.WHITE);
 
         String today = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, dd/MM/yyyy",
@@ -252,7 +252,7 @@ public class StudentDashboardPanel extends JPanel {
                 g2.setColor(fa);
                 int sweep = (int) (fp * 360 / 100.0);
                 g2.drawArc(pad, pad, w - 2 * pad, h - 2 * pad, 90, -sweep);
-                g2.setFont(new Font("Segoe UI", Font.BOLD, 10));
+                g2.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
                 g2.setColor(fa);
                 String txt = fp + "%";
                 FontMetrics fm = g2.getFontMetrics();
@@ -345,7 +345,7 @@ public class StudentDashboardPanel extends JPanel {
         JLabel lblTotal = new JLabel(
             latestInvoice != null ? String.format("%,d đ", totalAmt) : "Không có hóa đơn"
         );
-        lblTotal.setFont(new Font("Segoe UI", Font.BOLD, 30));
+        lblTotal.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 30));
         lblTotal.setForeground(paid ? UITheme.SUCCESS_TEXT : UITheme.PRIMARY);
         centerPanel.add(lblTotal);
 

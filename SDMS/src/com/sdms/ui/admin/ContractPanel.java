@@ -173,18 +173,18 @@ public class ContractPanel extends JPanel {
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         btnRow.setOpaque(false); btnRow.setAlignmentX(LEFT_ALIGNMENT);
         btnRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        JButton btnAdd    = UITheme.primaryBtn("□ Thêm");
-        JButton btnEdit   = UITheme.warningBtn("□ Sửa");
-        JButton btnDelete = UITheme.dangerBtn("□ Xóa");
-        JButton btnReset  = UITheme.outlineBtn("□ Làm mới");
+        JButton btnAdd    = UITheme.primaryBtn("➕ Thêm");
+        JButton btnEdit   = UITheme.warningBtn("✏ Sửa");
+        JButton btnDelete = UITheme.dangerBtn("🗑 Xóa");
+        JButton btnReset  = UITheme.outlineBtn("🔄 Làm mới");
         btnRow.add(btnAdd); btnRow.add(btnEdit); btnRow.add(btnDelete); btnRow.add(btnReset);
 
         // ── Nút thao tác hàng 2 ──────────────────────────────────
         JPanel btnRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         btnRow2.setOpaque(false); btnRow2.setAlignmentX(LEFT_ALIGNMENT);
         btnRow2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        JButton btnExpire = UITheme.dangerBtn("□ Chấm dứt HĐ");
-        JButton btnExport = UITheme.successBtn("□ Xuất danh sách");
+        JButton btnExpire = UITheme.dangerBtn("⛔ Chấm dứt HĐ");
+        JButton btnExport = UITheme.successBtn("📤 Xuất danh sách");
         btnRow2.add(btnExpire); btnRow2.add(btnExport);
 
         // Gắn sự kiện
@@ -272,7 +272,7 @@ public class ContractPanel extends JPanel {
         );
         cbFilter.setPreferredSize(new Dimension(160, 36));
 
-        JButton btnRefresh = UITheme.outlineBtn("□ Làm mới");
+        JButton btnRefresh = UITheme.outlineBtn("🔄 Làm mới");
         btnRefresh.setPreferredSize(new Dimension(110, 36));
 
         toolbar.add(tfSearch);

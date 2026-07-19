@@ -62,11 +62,11 @@ public class ChangePasswordPanel extends JPanel {
                 new EmptyBorder(14, 24, 14, 24)));
 
         JLabel title = new JLabel("🔒  Đổi mật khẩu");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        title.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
         title.setForeground(TEXT_PRIMARY);
 
         JLabel sub = new JLabel("Trang chủ / Đổi mật khẩu");
-        sub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        sub.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         sub.setForeground(TEXT_MUTED);
 
         JPanel left = new JPanel(new BorderLayout(0, 2));
@@ -135,12 +135,12 @@ public class ChangePasswordPanel extends JPanel {
         iconWrapper.setAlignmentX(CENTER_ALIGNMENT);
 
         JLabel cardTitle = new JLabel("Thay đổi mật khẩu", SwingConstants.CENTER);
-        cardTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        cardTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
         cardTitle.setForeground(TEXT_PRIMARY);
         cardTitle.setAlignmentX(CENTER_ALIGNMENT);
 
         JLabel cardSub = new JLabel("Tài khoản: " + currentUser.getUsername(), SwingConstants.CENTER);
-        cardSub.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cardSub.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         cardSub.setForeground(TEXT_MUTED);
         cardSub.setAlignmentX(CENTER_ALIGNMENT);
 
@@ -170,7 +170,7 @@ public class ChangePasswordPanel extends JPanel {
 
         // ── Checkbox ──────────────────────────────────────────────
         chkShow = new JCheckBox("Hiện mật khẩu");
-        chkShow.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        chkShow.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         chkShow.setForeground(TEXT_MUTED);
         chkShow.setOpaque(false);
         chkShow.setFocusPainted(false);
@@ -225,7 +225,7 @@ public class ChangePasswordPanel extends JPanel {
         p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
 
         lblStrength = new JLabel("Độ mạnh: —");
-        lblStrength.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        lblStrength.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
         lblStrength.setForeground(TEXT_MUTED);
 
         // Track bar
@@ -302,7 +302,7 @@ public class ChangePasswordPanel extends JPanel {
         p.setAlignmentX(LEFT_ALIGNMENT);
 
         JLabel title = new JLabel("💡  Gợi ý tạo mật khẩu mạnh");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        title.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
         title.setForeground(PRIMARY);
 
         JPanel grid = new JPanel(new GridLayout(2, 2, 10, 6));
@@ -312,10 +312,10 @@ public class ChangePasswordPanel extends JPanel {
             JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
             row.setOpaque(false);
             tipIcons[i] = new JLabel("✓");
-            tipIcons[i].setFont(new Font("Segoe UI", Font.BOLD, 10));
+            tipIcons[i].setFont(new Font(Font.SANS_SERIF, Font.BOLD, 10));
             tipIcons[i].setForeground(TIP_INACTIVE);
             JLabel txt = new JLabel(tipTexts[i]);
-            txt.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+            txt.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
             txt.setForeground(TIP_INACTIVE);
             // store ref so updateTips can reach it
             tipIcons[i].putClientProperty("txt", txt);
@@ -411,7 +411,7 @@ public class ChangePasswordPanel extends JPanel {
     // ── UI Helpers ────────────────────────────────────────────────
     private JPasswordField styledPasswordField() {
         JPasswordField pf = new JPasswordField();
-        pf.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        pf.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
         pf.setBackground(BG_FIELD);
         pf.setForeground(TEXT_PRIMARY);
         pf.setCaretColor(PRIMARY);
@@ -442,7 +442,7 @@ public class ChangePasswordPanel extends JPanel {
         p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 68));
 
         JLabel lbl = new JLabel(labelText);
-        lbl.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        lbl.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
         lbl.setForeground(TEXT_LABEL);
 
         p.add(lbl, BorderLayout.NORTH);
@@ -471,7 +471,7 @@ public class ChangePasswordPanel extends JPanel {
                 g2.dispose();
             }
         };
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
         btn.setForeground(Color.WHITE);
         btn.setBorderPainted(false);
         btn.setContentAreaFilled(false);
@@ -501,7 +501,7 @@ public class ChangePasswordPanel extends JPanel {
                 g2.dispose();
             }
         };
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btn.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
         btn.setBorderPainted(false);
         btn.setContentAreaFilled(false);
         btn.setFocusPainted(false);

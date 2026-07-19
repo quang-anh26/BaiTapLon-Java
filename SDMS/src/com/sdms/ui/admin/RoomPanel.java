@@ -99,7 +99,7 @@ public class RoomPanel extends JPanel {
         JPanel card = UITheme.card();
         card.setLayout(new BorderLayout());
         JLabel num = new JLabel(String.valueOf(val), SwingConstants.CENTER);
-        num.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        num.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 28));
         num.setForeground(color);
         JLabel label = new JLabel(lbl, SwingConstants.CENTER);
         label.setFont(UITheme.FONT_SMALL); label.setForeground(UITheme.TEXT_SECONDARY);
@@ -221,7 +221,7 @@ public class RoomPanel extends JPanel {
             section.setMaximumSize(new Dimension(Integer.MAX_VALUE, 9999));
 
             JLabel floorLabel = new JLabel("🏢  Tầng " + f);
-            floorLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            floorLabel.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
             floorLabel.setForeground(UITheme.TEXT_SECONDARY);
             floorLabel.setBorder(new EmptyBorder(8, 0, 4, 0));
 
@@ -271,7 +271,7 @@ public class RoomPanel extends JPanel {
         card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         JLabel lblId = new JLabel(room.getId());
-        lblId.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        lblId.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
         lblId.setForeground(textC);
         lblId.setAlignmentX(LEFT_ALIGNMENT);
 
@@ -326,7 +326,7 @@ public class RoomPanel extends JPanel {
         header.setBorder(new EmptyBorder(12, 18, 12, 18));
 
         JLabel titleLbl = new JLabel("🚪  " + room.getId());
-        titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        titleLbl.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
         titleLbl.setForeground(Color.WHITE);
         JLabel statusLbl = new JLabel(room.getStatusText());
         statusLbl.setFont(UITheme.FONT_SMALL);
@@ -532,7 +532,7 @@ public class RoomPanel extends JPanel {
         header.setBorder(new EmptyBorder(12, 18, 12, 18));
         JLabel title = new JLabel("👥  Danh sách thành viên — Phòng " + room.getId()
             + "  (" + members.size() + "/" + room.getCapacity() + " người)");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        title.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
         title.setForeground(Color.WHITE);
         header.add(title, BorderLayout.WEST);
 

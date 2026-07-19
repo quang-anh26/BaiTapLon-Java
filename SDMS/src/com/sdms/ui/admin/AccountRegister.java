@@ -42,14 +42,14 @@ public class AccountRegister extends JPanel {
     private static final Color DIVIDER      = new Color(0xE2, 0xEA, 0xF6);
 
     // ── Font ────────────────────────────────────────────────────────────────────────
-    private static final Font F_TITLE   = new Font("Segoe UI", Font.BOLD,  19);
-    private static final Font F_SUB     = new Font("Segoe UI", Font.PLAIN, 12);
-    private static final Font F_SECTION = new Font("Segoe UI", Font.BOLD,  10);
-    private static final Font F_LABEL   = new Font("Segoe UI", Font.BOLD,  12);
-    private static final Font F_INPUT   = new Font("Segoe UI", Font.PLAIN, 13);
-    private static final Font F_BTN     = new Font("Segoe UI", Font.BOLD,  13);
-    private static final Font F_SMALL   = new Font("Segoe UI", Font.PLAIN, 11);
-    private static final Font F_ERR     = new Font("Segoe UI", Font.PLAIN, 11);
+    private static final Font F_TITLE   = new Font(Font.SANS_SERIF, Font.BOLD,  19);
+    private static final Font F_SUB     = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+    private static final Font F_SECTION = new Font(Font.SANS_SERIF, Font.BOLD,  10);
+    private static final Font F_LABEL   = new Font(Font.SANS_SERIF, Font.BOLD,  12);
+    private static final Font F_INPUT   = new Font(Font.SANS_SERIF, Font.PLAIN, 13);
+    private static final Font F_BTN     = new Font(Font.SANS_SERIF, Font.BOLD,  13);
+    private static final Font F_SMALL   = new Font(Font.SANS_SERIF, Font.PLAIN, 11);
+    private static final Font F_ERR     = new Font(Font.SANS_SERIF, Font.PLAIN, 11);
 
     // ── Fields ──────────────────────────────────────────────────────────────────────
     private JTextField     tfUsername, tfFullName, tfPhone, tfDob, tfCccd;
@@ -249,7 +249,7 @@ public class AccountRegister extends JPanel {
                 super.paintComponent(g);
                 if (getText().isEmpty() && !isFocusOwner()) {
                     g2.setColor(TEXT_MUTED);
-                    g2.setFont(new Font("Segoe UI", Font.ITALIC, 12));
+                    g2.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 12));
                     FontMetrics fm = g2.getFontMetrics();
                     g2.drawString(ph, 10, (getHeight() + fm.getAscent() - fm.getDescent()) / 2);
                 }
@@ -517,7 +517,7 @@ public class AccountRegister extends JPanel {
         tp.setLayout(new BoxLayout(tp, BoxLayout.Y_AXIS));
         tp.setOpaque(false);
         JLabel tl = new JLabel("Chọn ảnh hoặc file minh chứng trúng tuyển");
-        tl.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        tl.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
         tl.setForeground(TEXT_PRIMARY);
         lblFileName = new JLabel("Hỗ trợ: JPG, PNG, PDF — nhấp vào đây để chọn");
         lblFileName.setFont(F_SMALL);
@@ -791,7 +791,7 @@ private void showDatePicker() {
         ico.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 18));
 
         JLabel txt = new JLabel("<html>" + msg + "</html>");
-        txt.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        txt.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         txt.setForeground(TEXT_PRIMARY);
 
         c.add(ico, BorderLayout.WEST);
