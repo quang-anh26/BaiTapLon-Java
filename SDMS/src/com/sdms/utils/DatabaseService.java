@@ -586,7 +586,7 @@ public class DatabaseService {
     /** Sinh mã hợp đồng tiếp theo */
     public static String nextContractId() {
         // Dùng SUBSTRING từ vị trí 3 để bỏ 2 byte "HĐ" (ký tự Unicode)
-        String sql = "SELECT TOP 1 id FROM Contracts ORDER BY id DESC";
+        String sql = "SELECT id FROM Contracts ORDER BY id DESC LIMIT 1";
         try (Connection con = DatabaseConnection.getConnection();
                 Statement st = con.createStatement();
                 ResultSet rs = st.executeQuery(sql)) {
@@ -698,7 +698,7 @@ public class DatabaseService {
 
     /** Sinh mã tiếp theo */
     public static String nextUtilityId() {
-        String sql = "SELECT TOP 1 id FROM Utilities ORDER BY id DESC";
+        String sql = "SELECT id FROM Utilities ORDER BY id DESC LIMIT 1";
         try (Connection con = DatabaseConnection.getConnection();
                 Statement st = con.createStatement();
                 ResultSet rs = st.executeQuery(sql)) {
@@ -846,7 +846,7 @@ public class DatabaseService {
 
     /** Sinh mã hóa đơn tiếp theo */
     public static String nextInvoiceId() {
-        String sql = "SELECT TOP 1 id FROM Invoices ORDER BY id DESC";
+        String sql = "SELECT id FROM Invoices ORDER BY id DESC LIMIT 1";
         try (Connection con = DatabaseConnection.getConnection();
                 Statement st = con.createStatement();
                 ResultSet rs = st.executeQuery(sql)) {
@@ -980,7 +980,7 @@ public class DatabaseService {
 
     /** Sinh mã vi phạm tiếp theo */
     public static String nextViolationId() {
-        String sql = "SELECT TOP 1 id FROM Violations ORDER BY id DESC";
+        String sql = "SELECT id FROM Violations ORDER BY id DESC LIMIT 1";
         try (Connection con = DatabaseConnection.getConnection();
                 Statement st = con.createStatement();
                 ResultSet rs = st.executeQuery(sql)) {
@@ -1100,7 +1100,7 @@ public class DatabaseService {
 
     /** Sinh mã thông báo tiếp theo */
     public static String nextNotificationId() {
-        String sql = "SELECT TOP 1 id FROM Notifications ORDER BY id DESC";
+        String sql = "SELECT id FROM Notifications ORDER BY id DESC LIMIT 1";
         try (Connection con = DatabaseConnection.getConnection();
                 Statement st = con.createStatement();
                 ResultSet rs = st.executeQuery(sql)) {
