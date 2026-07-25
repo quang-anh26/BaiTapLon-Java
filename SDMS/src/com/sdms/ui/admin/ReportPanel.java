@@ -618,7 +618,7 @@ public class ReportPanel extends JPanel {
                 pw.printf("%s,%s,%s,%s,%d,%d,%d,%d,%s%n",
                     inv.getId(), inv.getStudentName(), inv.getRoomId(), inv.getMonth(),
                     inv.getRoomFee(), inv.getElectricFee(), inv.getWaterFee(), inv.getTotal(),
-                    inv.isPaid() ? "Đã thanh toán" : "Chưa thanh toán");
+                    inv.getStatusText());
             }
             pw.println();
 

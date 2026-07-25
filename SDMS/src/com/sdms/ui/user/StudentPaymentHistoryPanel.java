@@ -108,27 +108,34 @@ public class StudentPaymentHistoryPanel extends JPanel {
     // ── 3 card tóm tắt ─────────────────────────────────────────
 
     private JPanel buildSummaryCards() {
-        JPanel row = new JPanel(new GridLayout(1, 3, 12, 0));
+        JPanel row = new JPanel(new GridLayout(1, 4, 12, 0));
         row.setOpaque(false);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
 
-        long totalPaid   = allInvoices.stream().filter(Invoice::isPaid)
+        long totalPaid    = allInvoices.stream().filter(Invoice::isPaid)
             .mapToLong(Invoice::getTotal).sum();
-        long totalUnpaid = allInvoices.stream().filter(i -> !i.isPaid())
+        long totalPending = allInvoices.stream().filter(Invoice::isPending)
             .mapToLong(Invoice::getTotal).sum();
-        long countPaid   = allInvoices.stream().filter(Invoice::isPaid).count();
-        long countUnpaid = allInvoices.stream().filter(i -> !i.isPaid()).count();
+        long totalUnpaid  = allInvoices.stream().filter(Invoice::isUnpaid)
+            .mapToLong(Invoice::getTotal).sum();
+        long countPaid    = allInvoices.stream().filter(Invoice::isPaid).count();
+        long countPending = allInvoices.stream().filter(Invoice::isPending).count();
+        long countUnpaid  = allInvoices.stream().filter(Invoice::isUnpaid).count();
 
         row.add(summaryCard("✅ Đã thanh toán",
             String.format("%,d đ", totalPaid),
             countPaid + " hóa đơn",
             UITheme.SUCCESS_TEXT, UITheme.SUCCESS_BG));
+        row.add(summaryCard("🕓 Chờ xử lí",
+            String.format("%,d đ", totalPending),
+            countPending + " hóa đơn",
+            UITheme.INFO_TEXT, UITheme.INFO_BG));
         row.add(summaryCard("⏳ Chưa thanh toán",
             String.format("%,d đ", totalUnpaid),
             countUnpaid + " hóa đơn",
             UITheme.WARNING_TEXT, UITheme.WARNING_BG));
         row.add(summaryCard("📊 Tổng cộng",
-            String.format("%,d đ", totalPaid + totalUnpaid),
+            String.format("%,d đ", totalPaid + totalPending + totalUnpaid),
             allInvoices.size() + " hóa đơn",
             UITheme.PRIMARY, UITheme.PRIMARY_LIGHT));
 
@@ -181,7 +188,7 @@ public class StudentPaymentHistoryPanel extends JPanel {
         filters.setOpaque(false);
 
         JComboBox<String> cbStatus = UITheme.comboBox(
-            new String[]{"Tất cả", "Đã thanh toán", "Chưa thanh toán"});
+            new String[]{"Tất cả", "Đã thanh toán", "Chờ xử lí", "Chưa thanh toán"});
         cbStatus.setPreferredSize(new Dimension(160, 34));
 
         JComboBox<String> cbYear = UITheme.comboBox(
@@ -246,13 +253,14 @@ public class StudentPaymentHistoryPanel extends JPanel {
             return l;
         });
 
-        // Renderer Trạng thái (badge màu)
+        // Renderer Trạng thái (badge màu — 3 trạng thái)
         table.getColumnModel().getColumn(7).setCellRenderer((t, v, sel, f, r, c) -> {
-            String  s  = v.toString();
-            boolean ok = s.contains("Đã");
-            JLabel lbl = UITheme.badge(s,
-                ok ? UITheme.SUCCESS_BG   : UITheme.WARNING_BG,
-                ok ? UITheme.SUCCESS_TEXT : UITheme.WARNING_TEXT);
+            String s = v.toString();
+            Color bg, fg;
+            if (s.contains("Đã"))            { bg = UITheme.SUCCESS_BG; fg = UITheme.SUCCESS_TEXT; }
+            else if (s.contains("Chờ xử lí")) { bg = UITheme.INFO_BG;    fg = UITheme.INFO_TEXT;    }
+            else                              { bg = UITheme.WARNING_BG; fg = UITheme.WARNING_TEXT; }
+            JLabel lbl = UITheme.badge(s, bg, fg);
             lbl.setOpaque(true);
             lbl.setBackground(sel ? UITheme.PRIMARY_LIGHT : UITheme.WHITE);
             return lbl;
@@ -266,7 +274,8 @@ public class StudentPaymentHistoryPanel extends JPanel {
                 .filter(i -> {
                     boolean ms = "Tất cả".equals(st)
                         || ("Đã thanh toán".equals(st)    && i.isPaid())
-                        || ("Chưa thanh toán".equals(st)  && !i.isPaid());
+                        || ("Chờ xử lí".equals(st)        && i.isPending())
+                        || ("Chưa thanh toán".equals(st)  && i.isUnpaid());
                     boolean my = "Tất cả năm".equals(yr)
                         || i.getMonth().endsWith(yr);
                     return ms && my;
@@ -320,7 +329,8 @@ public class StudentPaymentHistoryPanel extends JPanel {
             {"Tiền điện:",    String.format("%,d đ", inv.getElectricFee())},
             {"Tiền nước:",    String.format("%,d đ", inv.getWaterFee())},
             {"Tổng cộng:",    String.format("%,d đ", inv.getTotal())},
-            {"Trạng thái:",   inv.isPaid() ? "✅ Đã thanh toán" : "⏳ Chưa thanh toán"},
+            {"Trạng thái:",   inv.isPaid() ? "✅ Đã thanh toán"
+                              : (inv.isPending() ? "🕓 Chờ xử lí" : "⏳ Chưa thanh toán")},
         };
         for (String[] r : rows) {
             JLabel k = new JLabel(r[0]);

@@ -281,7 +281,7 @@ public class DatabaseService {
 
     /** Sinh mã sinh viên tiếp theo (VD: SV001249 → SV001250) */
     public static String nextStudentId() {
-        String sql = "SELECT MAX(CAST(SUBSTRING(id,3,LEN(id)) AS INT)) FROM Students WHERE id LIKE 'SV%'";
+        String sql = "SELECT MAX(CAST(SUBSTRING(id,3,LENGTH(id)) AS INT)) FROM Students WHERE id LIKE 'SV%'";
         try (Connection con = DatabaseConnection.getConnection();
                 Statement st = con.createStatement();
                 ResultSet rs = st.executeQuery(sql)) {
@@ -389,7 +389,7 @@ public class DatabaseService {
     public static List<PendingAccount> getAllPendingAccounts() {
         List<PendingAccount> list = new ArrayList<>();
         String sql = "SELECT id, username, full_name, phone, dob, cccd, gender, "
-                + "registered_at, status, note, password FROM PendingAccounts ORDER BY registered_at DESC";
+                + "registered_at, status, note, password FROM pending_accounts ORDER BY registered_at DESC";
         try (Connection con = DatabaseConnection.getConnection();
                 Statement st = con.createStatement();
                 ResultSet rs = st.executeQuery(sql)) {
@@ -422,7 +422,7 @@ public class DatabaseService {
 
     /** Thêm đơn đăng ký mới */
     public static boolean addPendingAccount(PendingAccount pa) {
-        String sql = "INSERT INTO PendingAccounts "
+        String sql = "INSERT INTO pending_accounts "
                 + "(id, username, full_name, phone, dob, cccd, gender, registered_at, status, note, password) "
                 + "VALUES (?,?,?,?,?,?,?,?,?,?,?)";
         try (Connection con = DatabaseConnection.getConnection();
@@ -448,7 +448,7 @@ public class DatabaseService {
 
     /** Cập nhật trạng thái + ghi chú đơn đăng ký */
     public static boolean updatePendingAccountStatus(String id, String status, String note) {
-        String sql = "UPDATE PendingAccounts SET status=?, note=? WHERE id=?";
+        String sql = "UPDATE pending_accounts SET status=?, note=? WHERE id=?";
         try (Connection con = DatabaseConnection.getConnection();
                 PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, status);
@@ -463,7 +463,7 @@ public class DatabaseService {
 
     /** Đếm số đơn đang chờ duyệt */
     public static long pendingCount() {
-        String sql = "SELECT COUNT(*) FROM PendingAccounts WHERE status=N'Chờ duyệt'";
+        String sql = "SELECT COUNT(*) FROM pending_accounts WHERE status='Chờ duyệt'";
         try (Connection con = DatabaseConnection.getConnection();
                 Statement st = con.createStatement();
                 ResultSet rs = st.executeQuery(sql)) {
@@ -477,7 +477,7 @@ public class DatabaseService {
 
     /** Sinh mã đơn đăng ký tiếp theo */
     public static String nextPendingId() {
-        String sql = "SELECT MAX(CAST(SUBSTRING(id,3,LEN(id)) AS INT)) FROM PendingAccounts WHERE id LIKE 'PA%'";
+        String sql = "SELECT MAX(CAST(SUBSTRING(id,3,LENGTH(id)) AS INT)) FROM pending_accounts WHERE id LIKE 'PA%'";
         try (Connection con = DatabaseConnection.getConnection();
                 Statement st = con.createStatement();
                 ResultSet rs = st.executeQuery(sql)) {
@@ -718,7 +718,7 @@ public class DatabaseService {
     public static List<Invoice> getAllInvoices() {
         List<Invoice> list = new ArrayList<>();
         String sql = "SELECT id, student_id, student_name, room_id, month, "
-                + "room_fee, electric_fee, water_fee, paid FROM Invoices ORDER BY month DESC, id";
+                + "room_fee, electric_fee, water_fee, paid, status FROM Invoices ORDER BY month DESC, id";
         try (Connection con = DatabaseConnection.getConnection();
                 Statement st = con.createStatement();
                 ResultSet rs = st.executeQuery(sql)) {
@@ -750,7 +750,7 @@ public class DatabaseService {
     public static boolean addInvoice(Invoice inv) {
         String sql = "INSERT INTO Invoices "
                 + "(id, student_id, student_name, room_id, utility_id, month, "
-                + "room_fee, electric_fee, water_fee, paid) VALUES (?,?,?,?,NULL,?,?,?,?,?)";
+                + "room_fee, electric_fee, water_fee, paid, status) VALUES (?,?,?,?,NULL,?,?,?,?,?,?)";
         try (Connection con = DatabaseConnection.getConnection();
                 PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, inv.getId());
@@ -762,6 +762,7 @@ public class DatabaseService {
             ps.setLong(7, inv.getElectricFee());
             ps.setLong(8, inv.getWaterFee());
             ps.setBoolean(9, inv.isPaid());
+            ps.setString(10, inv.getStatus());
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -787,18 +788,32 @@ public class DatabaseService {
         }
     }
 
-    /** Đánh dấu hóa đơn đã thanh toán */
-    public static boolean markInvoicePaid(String invoiceId, boolean paid) {
-        String sql = "UPDATE Invoices SET paid=? WHERE id=?";
+    /**
+     * Cập nhật trạng thái hóa đơn (UNPAID / PENDING / PAID).
+     * Đồng thời đồng bộ cột paid (BIT) để các truy vấn thống kê cũ
+     * (monthRevenue, v.v...) vẫn hoạt động đúng — paid=1 khi và chỉ khi PAID.
+     */
+    public static boolean markInvoiceStatus(String invoiceId, String status) {
+        String norm = (status == null) ? Invoice.STATUS_UNPAID : status.trim().toUpperCase();
+        String sql = "UPDATE Invoices SET status=?, paid=? WHERE id=?";
         try (Connection con = DatabaseConnection.getConnection();
                 PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setBoolean(1, paid);
-            ps.setString(2, invoiceId);
+            ps.setString(1, norm);
+            ps.setBoolean(2, Invoice.STATUS_PAID.equals(norm));
+            ps.setString(3, invoiceId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
         }
+    }
+
+    /**
+     * Giữ tương thích ngược với code cũ: đánh dấu đã thanh toán/chưa thanh toán.
+     * true -> PAID, false -> UNPAID. Để chuyển sang PENDING, dùng markInvoiceStatus(id, "PENDING").
+     */
+    public static boolean markInvoicePaid(String invoiceId, boolean paid) {
+        return markInvoiceStatus(invoiceId, paid ? Invoice.STATUS_PAID : Invoice.STATUS_UNPAID);
     }
 
     /** Xóa hóa đơn */
@@ -815,8 +830,8 @@ public class DatabaseService {
 
     /** Tổng doanh thu từ hóa đơn đã trả (tháng hiện tại) */
     public static long monthRevenue() {
-        String sql = "SELECT ISNULL(SUM(room_fee+electric_fee+water_fee),0) "
-                + "FROM Invoices WHERE paid=1";
+        String sql = "SELECT COALESCE(SUM(room_fee+electric_fee+water_fee),0) "
+                + "FROM Invoices WHERE paid=true";
         try (Connection con = DatabaseConnection.getConnection();
                 Statement st = con.createStatement();
                 ResultSet rs = st.executeQuery(sql)) {
@@ -830,8 +845,8 @@ public class DatabaseService {
 
     /** Tổng doanh thu theo tháng cụ thể */
     public static long monthRevenue(String month) {
-        String sql = "SELECT ISNULL(SUM(room_fee+electric_fee+water_fee),0) "
-                + "FROM Invoices WHERE paid=1 AND month=?";
+        String sql = "SELECT COALESCE(SUM(room_fee+electric_fee+water_fee),0) "
+                + "FROM Invoices WHERE paid=true AND month=?";
         try (Connection con = DatabaseConnection.getConnection();
                 PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, month);
@@ -1021,7 +1036,7 @@ public class DatabaseService {
         String sql = "SELECT n.*, "
                 + "CASE WHEN nr.student_id IS NOT NULL THEN 1 ELSE 0 END AS is_read "
                 + "FROM Notifications n "
-                + "LEFT JOIN NotificationReads nr ON nr.notification_id=n.id AND nr.student_id=? "
+                + "LEFT JOIN notification_reads nr ON nr.notification_id=n.id AND nr.student_id=? "
                 + "WHERE n.target='ALL' "
                 + "   OR (n.target='ROOM'    AND n.target_id=?) "
                 + "   OR (n.target='STUDENT' AND n.target_id=?) "
@@ -1120,8 +1135,8 @@ public class DatabaseService {
     public static boolean markNotificationRead(String notificationId, String studentId) {
         // INSERT OR IGNORE tương đương trong SQL Server dùng IF NOT EXISTS
         String sql = "IF NOT EXISTS ("
-                + "  SELECT 1 FROM NotificationReads WHERE notification_id=? AND student_id=?"
-                + ") INSERT INTO NotificationReads (notification_id, student_id) VALUES (?,?)";
+                + "  SELECT 1 FROM notification_reads WHERE notification_id=? AND student_id=?"
+                + ") INSERT INTO notification_reads (notification_id, student_id) VALUES (?,?)";
         try (Connection con = DatabaseConnection.getConnection();
                 PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, notificationId);
@@ -1142,7 +1157,7 @@ public class DatabaseService {
                 + "WHERE (n.target='ALL' OR (n.target='ROOM' AND n.target_id=?) "
                 + "   OR (n.target='STUDENT' AND n.target_id=?)) "
                 + "AND NOT EXISTS ("
-                + "  SELECT 1 FROM NotificationReads nr "
+                + "  SELECT 1 FROM notification_reads nr "
                 + "  WHERE nr.notification_id=n.id AND nr.student_id=?)";
         try (Connection con = DatabaseConnection.getConnection();
                 PreparedStatement ps = con.prepareStatement(sql)) {
@@ -1319,6 +1334,16 @@ public class DatabaseService {
     }
 
     private static Invoice mapInvoice(ResultSet rs) throws SQLException {
+        String status;
+        try {
+            status = rs.getString("status");
+        } catch (SQLException ex) {
+            // Cột status chưa tồn tại (DB cũ chưa migrate) → suy ra từ cột paid
+            status = null;
+        }
+        if (status == null || status.isEmpty()) {
+            status = rs.getBoolean("paid") ? Invoice.STATUS_PAID : Invoice.STATUS_UNPAID;
+        }
         return new Invoice(
                 rs.getString("id"),
                 rs.getString("student_id"),
@@ -1328,7 +1353,7 @@ public class DatabaseService {
                 rs.getLong("room_fee"),
                 rs.getLong("electric_fee"),
                 rs.getLong("water_fee"),
-                rs.getBoolean("paid"));
+                status);
     }
 
     private static Violation mapViolation(ResultSet rs) throws SQLException {
