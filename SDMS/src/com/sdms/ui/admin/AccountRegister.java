@@ -86,8 +86,8 @@ public class AccountRegister extends JPanel {
         JPanel card = new RoundedPanel(16, BG_CARD, BORDER_NORM);
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setBorder(new EmptyBorder(28, 36, 28, 36));
-        card.setPreferredSize(new Dimension(780, 700));
-        card.setMaximumSize(new Dimension(780, 700));
+        card.setPreferredSize(new Dimension(860, 720));
+        card.setMaximumSize(new Dimension(860, 720));
 
         // ── HEADER ──────────────────────────────────────────────────────────────────
         JLabel title = label("Đăng ký Tài khoản", F_TITLE, TEXT_PRIMARY);
@@ -106,8 +106,8 @@ public class AccountRegister extends JPanel {
         card.add(sectionHeader("Thông tin cá nhân"));
         card.add(vgap(12));
 
-        JPanel g1 = grid2(18, 10);
-        g1.setMaximumSize(new Dimension(Integer.MAX_VALUE, 270));
+        JPanel g1 = grid2(18, 12);
+        g1.setMaximumSize(new Dimension(Integer.MAX_VALUE, 300));
 
         tfUsername = input("VD: 22IT1234...");
         tfFullName = input("Nguyễn Văn A...");
@@ -458,7 +458,7 @@ public class AccountRegister extends JPanel {
         p.setOpaque(false);
 
         JPanel lr = row(FlowLayout.LEFT);
-        JLabel l = new JLabel(labelTxt);
+        JLabel l = new JLabel("<html>" + labelTxt + "</html>");
         l.setFont(F_LABEL); l.setForeground(TEXT_LABEL);
         lr.add(l);
         if (req) {
