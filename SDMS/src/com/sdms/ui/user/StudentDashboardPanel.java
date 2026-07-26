@@ -190,12 +190,22 @@ public class StudentDashboardPanel extends JPanel {
 
         // Card 1: Hóa đơn
         long total = latestInvoice != null ? latestInvoice.getTotal() : 0;
-        boolean paid = latestInvoice != null && latestInvoice.isPaid();
+        boolean paid    = latestInvoice != null && latestInvoice.isPaid();
+        boolean pending = latestInvoice != null && latestInvoice.isPending();
+        String invSub;
+        Color  invAccent, invBg;
+        if (latestInvoice == null) {
+            invSub = "Không có hóa đơn"; invAccent = UITheme.TEXT_SECONDARY; invBg = UITheme.BG_SECONDARY;
+        } else if (paid) {
+            invSub = "✅ Đã thanh toán"; invAccent = UITheme.SUCCESS_TEXT; invBg = UITheme.SUCCESS_BG;
+        } else if (pending) {
+            invSub = "🕓 Chờ xử lí"; invAccent = UITheme.INFO_TEXT; invBg = UITheme.INFO_BG;
+        } else {
+            invSub = "⏳ Chưa thanh toán"; invAccent = UITheme.WARNING_TEXT; invBg = UITheme.WARNING_BG;
+        }
         row.add(summaryCard("🧾 Hóa đơn tháng này",
             latestInvoice != null ? String.format("%,d đ", total) : "—",
-            paid ? "✅ Đã thanh toán" : (latestInvoice == null ? "Không có hóa đơn" : "⏳ Chưa thanh toán"),
-            paid ? UITheme.SUCCESS_TEXT : UITheme.WARNING_TEXT,
-            paid ? UITheme.SUCCESS_BG   : UITheme.WARNING_BG));
+            invSub, invAccent, invBg));
 
         // Card 2: Phòng
         String roomId   = room != null ? room.getId()   : "—";
@@ -337,6 +347,7 @@ public class StudentDashboardPanel extends JPanel {
 
         long    totalAmt = latestInvoice != null ? latestInvoice.getTotal() : 0;
         boolean paid     = latestInvoice != null && latestInvoice.isPaid();
+        boolean pending  = latestInvoice != null && latestInvoice.isPending();
 
         JPanel centerPanel = new JPanel(new GridBagLayout());
         centerPanel.setOpaque(false);
@@ -352,14 +363,21 @@ public class StudentDashboardPanel extends JPanel {
         JPanel bottom = new JPanel(new BorderLayout(8, 0));
         bottom.setOpaque(false);
 
-        JLabel lblStatus = UITheme.badge(
-            paid ? "✅ Đã thanh toán"
-                 : (latestInvoice == null ? "Không có hóa đơn" : "⏳ Chưa thanh toán"),
-            paid ? UITheme.SUCCESS_BG : UITheme.WARNING_BG,
-            paid ? UITheme.SUCCESS_TEXT : UITheme.WARNING_TEXT
-        );
+        String statusText;
+        Color  statusBg, statusFg;
+        if (latestInvoice == null) {
+            statusText = "Không có hóa đơn"; statusBg = UITheme.BG_SECONDARY; statusFg = UITheme.TEXT_SECONDARY;
+        } else if (paid) {
+            statusText = "✅ Đã thanh toán"; statusBg = UITheme.SUCCESS_BG; statusFg = UITheme.SUCCESS_TEXT;
+        } else if (pending) {
+            statusText = "🕓 Chờ xử lí"; statusBg = UITheme.INFO_BG; statusFg = UITheme.INFO_TEXT;
+        } else {
+            statusText = "⏳ Chưa thanh toán"; statusBg = UITheme.WARNING_BG; statusFg = UITheme.WARNING_TEXT;
+        }
+        JLabel lblStatus = UITheme.badge(statusText, statusBg, statusFg);
 
-        JButton btnPay = UITheme.primaryBtn(paid ? "✓ Xem hóa đơn" : "💳 Thanh toán ngay");
+        String btnLabel = paid ? "✓ Xem hóa đơn" : (pending ? "🕓 Đang chờ duyệt" : "💳 Thanh toán ngay");
+        JButton btnPay = UITheme.primaryBtn(btnLabel);
         btnPay.setEnabled(latestInvoice != null);
         btnPay.addActionListener(e -> {
             if (onNavigateToInvoice != null) onNavigateToInvoice.run();

@@ -154,6 +154,7 @@ CREATE TABLE Invoices (
     electric_fee BIGINT        NOT NULL DEFAULT 0,
     water_fee    BIGINT        NOT NULL DEFAULT 0,
     paid         BIT           NOT NULL DEFAULT 0,
+    status       VARCHAR(10)   NOT NULL DEFAULT 'UNPAID', -- UNPAID | PENDING | PAID
 
     CONSTRAINT PK_Invoices    PRIMARY KEY (id),
     CONSTRAINT FK_INV_Student FOREIGN KEY (student_id) REFERENCES Students(id),
@@ -163,6 +164,14 @@ CREATE TABLE Invoices (
     CONSTRAINT UQ_INV_SvMonth UNIQUE (student_id, month)
 );
 GO
+
+-- ════════════════════════════════════════════════════════════
+-- MIGRATION: nếu database đã tồn tại từ trước (chưa có cột status),
+-- chạy đoạn dưới đây MỘT LẦN để thêm cột và đồng bộ dữ liệu cũ:
+--
+-- ALTER TABLE Invoices ADD status VARCHAR(10) NOT NULL DEFAULT 'UNPAID';
+-- UPDATE Invoices SET status = CASE WHEN paid = 1 THEN 'PAID' ELSE 'UNPAID' END;
+-- GO
 
 
 CREATE TABLE Violations (
