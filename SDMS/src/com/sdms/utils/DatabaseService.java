@@ -22,12 +22,18 @@ import java.util.*;
  */
 public class DatabaseService {
 
-    // ════════════════════════════════════════════════════════════
-    // 1. ROOMS
-    // ════════════════════════════════════════════════════════════
-
+    private static List<Room> roomsCache;
+    private static List<Student> studentsCache;
+    private static List<PendingAccount> pendingAccountsCache;
+    private static List<Contract> contractsCache;
+    private static List<Utility> utilitiesCache;
+    private static List<Invoice> invoicesCache;
+    private static List<Violation> violationsCache;
+    private static List<Notification> notificationsCache;
+    private static Map<String, String> settingsCache;
     /** Lấy toàn bộ danh sách phòng */
     public static List<Room> getAllRooms() {
+        if (roomsCache != null) return roomsCache;
         List<Room> list = new ArrayList<>();
         String sql = "SELECT id, name, type, floor, capacity, occupied FROM Rooms ORDER BY id";
         try (Connection con = DatabaseConnection.getConnection();
@@ -45,6 +51,7 @@ public class DatabaseService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+         roomsCache = list; 
         return list;
     }
 
@@ -59,7 +66,9 @@ public class DatabaseService {
             ps.setInt(4, r.getFloor());
             ps.setInt(5, r.getCapacity());
             ps.setInt(6, r.getOccupied());
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) roomsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -73,7 +82,9 @@ public class DatabaseService {
                 PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, occupied);
             ps.setString(2, roomId);
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) roomsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -91,7 +102,9 @@ public class DatabaseService {
             ps.setInt(4, r.getCapacity());
             ps.setInt(5, r.getOccupied());
             ps.setString(6, r.getId());
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) roomsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -103,7 +116,9 @@ public class DatabaseService {
         try (Connection con = DatabaseConnection.getConnection();
                 PreparedStatement ps = con.prepareStatement("DELETE FROM Rooms WHERE id=?")) {
             ps.setString(1, roomId);
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) roomsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -143,6 +158,7 @@ public class DatabaseService {
 
     /** Lấy toàn bộ danh sách sinh viên */
     public static List<Student> getAllStudents() {
+        if (studentsCache != null) return studentsCache;
         List<Student> list = new ArrayList<>();
         String sql = "SELECT id, full_name, birth_date, gender, id_card, phone, email, "
                 + "university, faculty, class_name, address, room_id, status "
@@ -156,6 +172,7 @@ public class DatabaseService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        studentsCache = list;
         return list;
     }
 
@@ -195,7 +212,9 @@ public class DatabaseService {
             ps.setString(11, s.getAddress());
             ps.setString(12, nullIfEmpty(s.getRoomId()));
             ps.setString(13, s.getStatus());
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) studentsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -222,7 +241,9 @@ public class DatabaseService {
             ps.setString(11, nullIfEmpty(s.getRoomId()));
             ps.setString(12, s.getStatus());
             ps.setString(13, s.getId());
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) studentsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -239,7 +260,9 @@ public class DatabaseService {
         try (Connection con = DatabaseConnection.getConnection();
                 PreparedStatement ps = con.prepareStatement("DELETE FROM Students WHERE id=?")) {
             ps.setString(1, id);
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) studentsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -387,6 +410,7 @@ public class DatabaseService {
 
     /** Lấy toàn bộ đơn đăng ký */
     public static List<PendingAccount> getAllPendingAccounts() {
+        if (pendingAccountsCache != null) return pendingAccountsCache;
         List<PendingAccount> list = new ArrayList<>();
         String sql = "SELECT id, username, full_name, phone, dob, cccd, gender, "
                 + "registered_at, status, note, password FROM PendingAccounts ORDER BY registered_at DESC";
@@ -417,6 +441,7 @@ public class DatabaseService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+         pendingAccountsCache = list;
         return list;
     }
 
@@ -438,7 +463,9 @@ public class DatabaseService {
             ps.setString(9, pa.getStatusText());
             ps.setString(10, pa.getNote() == null ? "" : pa.getNote());
             ps.setString(11, pa.getPassword() != null ? pa.getPassword() : "");
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) pendingAccountsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -454,7 +481,9 @@ public class DatabaseService {
             ps.setString(1, status);
             ps.setString(2, note);
             ps.setString(3, id);
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) pendingAccountsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -495,6 +524,7 @@ public class DatabaseService {
 
     /** Lấy toàn bộ hợp đồng */
     public static List<Contract> getAllContracts() {
+        if (contractsCache != null) return contractsCache;
         List<Contract> list = new ArrayList<>();
         String sql = "SELECT id, student_id, student_name, room_id, start_date, end_date, "
                 + "monthly_fee, note, status FROM Contracts ORDER BY id";
@@ -507,6 +537,7 @@ public class DatabaseService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        contractsCache = list;
         return list;
     }
 
@@ -542,7 +573,9 @@ public class DatabaseService {
             ps.setLong(7, c.getMonthlyFee());
             ps.setString(8, c.getNote());
             ps.setString(9, c.getStatus().name());
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) contractsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -564,7 +597,9 @@ public class DatabaseService {
             ps.setString(7, c.getNote());
             ps.setString(8, c.getStatus().name());
             ps.setString(9, c.getId());
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) contractsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -576,7 +611,9 @@ public class DatabaseService {
         try (Connection con = DatabaseConnection.getConnection();
                 PreparedStatement ps = con.prepareStatement("DELETE FROM Contracts WHERE id=?")) {
             ps.setString(1, id);
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) contractsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -604,6 +641,7 @@ public class DatabaseService {
 
     /** Lấy toàn bộ bản ghi điện nước */
     public static List<Utility> getAllUtilities() {
+        if (utilitiesCache != null) return utilitiesCache;
         List<Utility> list = new ArrayList<>();
         String sql = "SELECT id, room_id, month, electric_prev, electric_curr, "
                 + "water_prev, water_curr, electric_unit_price, water_unit_price, "
@@ -616,6 +654,7 @@ public class DatabaseService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        utilitiesCache = list;
         return list;
     }
 
@@ -654,7 +693,9 @@ public class DatabaseService {
             ps.setLong(9, u.getWaterUnitPrice());
             ps.setString(10, u.getNote());
             ps.setBoolean(11, u.isConfirmed());
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) utilitiesCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -677,7 +718,9 @@ public class DatabaseService {
             ps.setString(7, u.getNote());
             ps.setBoolean(8, u.isConfirmed());
             ps.setString(9, u.getId());
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) utilitiesCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -689,7 +732,9 @@ public class DatabaseService {
         try (Connection con = DatabaseConnection.getConnection();
                 PreparedStatement ps = con.prepareStatement("DELETE FROM Utilities WHERE id=?")) {
             ps.setString(1, id);
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) utilitiesCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -716,6 +761,7 @@ public class DatabaseService {
 
     /** Lấy toàn bộ hóa đơn */
     public static List<Invoice> getAllInvoices() {
+        if (invoicesCache != null) return invoicesCache;
         List<Invoice> list = new ArrayList<>();
         String sql = "SELECT id, student_id, student_name, room_id, month, "
                 + "room_fee, electric_fee, water_fee, paid FROM Invoices ORDER BY month DESC, id";
@@ -727,6 +773,7 @@ public class DatabaseService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        invoicesCache = list;
         return list;
     }
 
@@ -762,7 +809,9 @@ public class DatabaseService {
             ps.setLong(7, inv.getElectricFee());
             ps.setLong(8, inv.getWaterFee());
             ps.setBoolean(9, inv.isPaid());
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) invoicesCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -780,7 +829,9 @@ public class DatabaseService {
             ps.setLong(1, electricFee);
             ps.setLong(2, waterFee);
             ps.setString(3, invoiceId);
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) invoicesCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -794,7 +845,9 @@ public class DatabaseService {
                 PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setBoolean(1, paid);
             ps.setString(2, invoiceId);
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) invoicesCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -806,7 +859,9 @@ public class DatabaseService {
         try (Connection con = DatabaseConnection.getConnection();
                 PreparedStatement ps = con.prepareStatement("DELETE FROM Invoices WHERE id=?")) {
             ps.setString(1, id);
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) invoicesCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -867,6 +922,7 @@ public class DatabaseService {
 
     /** Lấy toàn bộ vi phạm */
     public static List<Violation> getAllViolations() {
+        if (violationsCache != null) return violationsCache;
         List<Violation> list = new ArrayList<>();
         String sql = "SELECT id, student_id, student_name, room_id, vio_date, type, "
                 + "description, severity, fine, handled_by, status, note "
@@ -879,6 +935,7 @@ public class DatabaseService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        violationsCache = list;
         return list;
     }
 
@@ -917,7 +974,9 @@ public class DatabaseService {
             ps.setString(10, v.getHandledBy());
             ps.setString(11, v.getStatus().name());
             ps.setString(12, v.getNote());
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) violationsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -943,7 +1002,9 @@ public class DatabaseService {
             ps.setString(10, v.getStatus().name());
             ps.setString(11, v.getNote());
             ps.setString(12, v.getId());
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) violationsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -955,7 +1016,9 @@ public class DatabaseService {
         try (Connection con = DatabaseConnection.getConnection();
                 PreparedStatement ps = con.prepareStatement("DELETE FROM Violations WHERE id=?")) {
             ps.setString(1, id);
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) violationsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -1009,6 +1072,7 @@ public class DatabaseService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        notificationsCache = list;
         return list;
     }
 
@@ -1058,7 +1122,9 @@ public class DatabaseService {
             ps.setString(6, n.getTargetId() == null ? "" : n.getTargetId());
             ps.setString(7, n.getCreatedBy());
             ps.setBoolean(8, n.isPinned());
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) notificationsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -1079,7 +1145,9 @@ public class DatabaseService {
             ps.setString(6, n.getCreatedBy());
             ps.setBoolean(7, n.isPinned());
             ps.setString(8, n.getId());
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) notificationsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -1091,7 +1159,9 @@ public class DatabaseService {
         try (Connection con = DatabaseConnection.getConnection();
                 PreparedStatement ps = con.prepareStatement("DELETE FROM Notifications WHERE id=?")) {
             ps.setString(1, id);
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) notificationsCache = null;
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -1164,6 +1234,7 @@ public class DatabaseService {
 
     /** Lấy toàn bộ settings dưới dạng Map<key, value> */
     public static Map<String, String> getAllSettings() {
+        if (settingsCache != null) return settingsCache;
         Map<String, String> map = new LinkedHashMap<>();
         String sql = "SELECT setting_key, setting_value FROM Settings ORDER BY setting_key";
         try (Connection con = DatabaseConnection.getConnection();
@@ -1175,6 +1246,7 @@ public class DatabaseService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        settingsCache = map;
         return map;
     }
 
@@ -1202,8 +1274,10 @@ public class DatabaseService {
                 PreparedStatement ps = con.prepareStatement(update)) {
             ps.setString(1, value);
             ps.setString(2, key);
-            if (ps.executeUpdate() > 0)
+            if (ps.executeUpdate() > 0) {
+                settingsCache = null; 
                 return true;
+            }
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -1215,7 +1289,9 @@ public class DatabaseService {
                 PreparedStatement ps = con.prepareStatement(insert)) {
             ps.setString(1, key);
             ps.setString(2, value);
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            if (ok) settingsCache = null;   
+            return ok;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
