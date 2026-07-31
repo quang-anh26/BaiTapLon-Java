@@ -517,13 +517,38 @@ public class LoginFrame extends JFrame {
             return;
         }
 
-        dispose();
-        if (user.getRole() == User.Role.ADMIN) {
-            new AdminFrame(user).setVisible(true);
-        } else {
-            new UserFrame(user).setVisible(true);
+        lblError.setForeground(java.awt.Color.WHITE);
+    lblError.setText("⏳ Đang tải dữ liệu, vui lòng đợi...");
+    setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.WAIT_CURSOR));
+
+    new SwingWorker<Void, Void>() {
+        @Override
+        protected Void doInBackground() {
+            // Gọi 1 lần từng bảng để nạp sẵn vào cache trong DatabaseService
+            DatabaseService.getAllRooms();
+            DatabaseService.getAllStudents();
+            DatabaseService.getAllContracts();
+            DatabaseService.getAllInvoices();
+            DatabaseService.getAllUtilities();
+            DatabaseService.getAllViolations();
+            DatabaseService.getAllPendingAccounts();
+            DatabaseService.getAllNotifications();
+            DatabaseService.getAllSettings();
+            return null;
         }
-    }
+
+        @Override
+        protected void done() {
+            setCursor(java.awt.Cursor.getDefaultCursor());
+            dispose();
+            if (user.getRole() == User.Role.ADMIN) {
+                new AdminFrame(user).setVisible(true);
+            } else {
+                new UserFrame(user).setVisible(true);
+            }
+        }
+    }.execute();
+}
 
     private void doRegister() {
         JFrame registerWindow = new JFrame("Đăng ký tài khoản");
