@@ -45,7 +45,7 @@ public class UserFrame extends JFrame {
     // ── SIDEBAR ──────────────────────────────────────────────────
 
     private JPanel buildSidebar() {
-        JPanel sb = new JPanel(null) {
+        JPanel sb = new JPanel(new BorderLayout()) {
             @Override protected void paintComponent(Graphics g) {
                 g.setColor(UITheme.SIDEBAR_DARK);
                 g.fillRect(0, 0, getWidth(), getHeight());
@@ -135,25 +135,23 @@ public class UserFrame extends JFrame {
         top.add(code);
         top.add(Box.createVerticalStrut(8));
         top.add(roomBadge);
-        top.setBounds(0, 0, 200, 180);
 
         // Nav items
         JPanel nav = new JPanel();
         nav.setOpaque(false);
         nav.setLayout(new BoxLayout(nav, BoxLayout.Y_AXIS));
-        nav.setBounds(0, 182, 200, 420);
         for (String m : MENU) nav.add(buildMenuItem(m));
 
         // Logout
         JPanel logout = buildMenuItemColored("↩  Đăng xuất", new Color(0xFCA5A5));
-        logout.setBounds(0, 650, 200, 40);
+        logout.setBorder(new EmptyBorder(8, 0, 16, 0));
         logout.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) { confirmLogout(); }
         });
 
-        sb.add(top);
-        sb.add(nav);
-        sb.add(logout);
+        sb.add(top, BorderLayout.NORTH);
+        sb.add(nav, BorderLayout.CENTER);
+        sb.add(logout, BorderLayout.SOUTH);
         return sb;
     }
 

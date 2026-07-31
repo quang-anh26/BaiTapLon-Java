@@ -18,23 +18,18 @@ public class Contract {
         PENDING      // Chờ ký kết
     }
 
-    // ── Định dạng ngày dd/MM/yyyy ─────────────────────────────────
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    // ── Các trường dữ liệu ────────────────────────────────────────
-    private String      id;          // Mã hợp đồng, VD: "HĐ0001"
-    private String      studentId;   // Mã sinh viên liên kết
-    private String      studentName; // Tên sinh viên (lưu cache để hiển thị nhanh)
-    private String      roomId;      // Mã phòng
-    private LocalDate   startDate;   // Ngày bắt đầu
-    private LocalDate   endDate;     // Ngày kết thúc
-    private long        monthlyFee;  // Tiền phòng hàng tháng (đồng)
-    private String      note;        // Ghi chú thêm
-    private Status      status;      // Trạng thái hợp đồng
+    private String      id;
+    private String      studentId;
+    private String      studentName;
+    private String      roomId;
+    private LocalDate   startDate;
+    private LocalDate   endDate;
+    private long        monthlyFee;
+    private String      note;
+    private Status      status;
 
-    /**
-     * Constructor đầy đủ — dùng khi tạo hợp đồng mới hoặc load từ store.
-     */
     public Contract(String id, String studentId, String studentName,
                     String roomId, LocalDate startDate, LocalDate endDate,
                     long monthlyFee, String note, Status status) {
@@ -47,14 +42,9 @@ public class Contract {
         this.monthlyFee  = monthlyFee;
         this.note        = note;
         this.status      = status;
-        refreshStatus(); // Tự động cập nhật trạng thái dựa trên ngày
+        refreshStatus();
     }
 
-    // ── Tự động cập nhật trạng thái theo ngày hiện tại ──────────
-    /**
-     * Tự động chuyển trạng thái sang EXPIRED nếu đã quá hạn.
-     * Không ghi đè nếu đã là TERMINATED hoặc PENDING.
-     */
     public void refreshStatus() {
         if (status == Status.TERMINATED || status == Status.PENDING) return;
         if (endDate != null && LocalDate.now().isAfter(endDate)) {
@@ -64,19 +54,19 @@ public class Contract {
         }
     }
 
-    // ── Tính số ngày còn lại của hợp đồng ───────────────────────
-    /**
-     * @return số ngày còn lại cho đến ngày kết thúc, 0 nếu đã hết hạn
-     */
     public long getDaysRemaining() {
         if (endDate == null) return 0;
         long days = ChronoUnit.DAYS.between(LocalDate.now(), endDate);
         return Math.max(0, days);
     }
 
-    // ── Phần trăm thời gian đã sử dụng (0–100) ──────────────────
+    public long getDurationMonths() {
+        if (startDate == null || endDate == null) return 0;
+        return ChronoUnit.MONTHS.between(startDate, endDate);
+    }
+
     /**
-     * @return phần trăm thời gian đã sử dụng của hợp đồng.
+     * Phần trăm thời gian đã sử dụng của hợp đồng (0–100).
      * VD: hợp đồng 12 tháng, đã đi được 3 tháng → 25%
      */
     public int getElapsedPercent() {
@@ -88,16 +78,6 @@ public class Contract {
         return (int) (elapsed * 100 / total);
     }
 
-    // ── Tính tổng thời hạn hợp đồng tính theo tháng ─────────────
-    /**
-     * @return số tháng từ ngày bắt đầu đến ngày kết thúc
-     */
-    public long getDurationMonths() {
-        if (startDate == null || endDate == null) return 0;
-        return ChronoUnit.MONTHS.between(startDate, endDate);
-    }
-
-    // ── Lấy trạng thái dạng chuỗi tiếng Việt ────────────────────
     public String getStatusText() {
         return switch (status) {
             case ACTIVE     -> "Đang hiệu lực";
@@ -107,16 +87,9 @@ public class Contract {
         };
     }
 
-    // ── Chuyển thành mảng Object[] để đưa vào JTable ─────────────
-    /**
-     * Thứ tự cột: Mã HĐ | Mã SV | Tên SV | Phòng | Ngày BĐ | Ngày KT | Tiền/tháng | Trạng thái
-     */
     public Object[] toRow() {
         return new Object[]{
-            id,
-            studentId,
-            studentName,
-            roomId,
+            id, studentId, studentName, roomId,
             startDate != null ? startDate.format(FMT) : "—",
             endDate   != null ? endDate.format(FMT)   : "—",
             String.format("%,d đ", monthlyFee),
@@ -124,7 +97,6 @@ public class Contract {
         };
     }
 
-    // ── Getters ───────────────────────────────────────────────────
     public String      getId()          { return id; }
     public String      getStudentId()   { return studentId; }
     public String      getStudentName() { return studentName; }
@@ -134,13 +106,9 @@ public class Contract {
     public long        getMonthlyFee()  { return monthlyFee; }
     public String      getNote()        { return note; }
     public Status      getStatus()      { return status; }
+    public String      getStartDateStr(){ return startDate != null ? startDate.format(FMT) : ""; }
+    public String      getEndDateStr()  { return endDate   != null ? endDate.format(FMT)   : ""; }
 
-    /** Ngày bắt đầu dạng chuỗi dd/MM/yyyy */
-    public String getStartDateStr() { return startDate != null ? startDate.format(FMT) : ""; }
-    /** Ngày kết thúc dạng chuỗi dd/MM/yyyy */
-    public String getEndDateStr()   { return endDate   != null ? endDate.format(FMT)   : ""; }
-
-    // ── Setters ───────────────────────────────────────────────────
     public void setStudentId(String v)   { this.studentId   = v; }
     public void setStudentName(String v) { this.studentName = v; }
     public void setRoomId(String v)      { this.roomId      = v; }
@@ -150,29 +118,14 @@ public class Contract {
     public void setNote(String v)        { this.note        = v; }
     public void setStatus(Status v)      { this.status      = v; }
 
-    // ── Tiện ích parse ngày từ chuỗi dd/MM/yyyy ──────────────────
-    /**
-     * Chuyển chuỗi "dd/MM/yyyy" thành LocalDate.
-     * @return LocalDate hoặc null nếu không parse được
-     */
     public static LocalDate parseDate(String str) {
-        try {
-            return LocalDate.parse(str.trim(), FMT);
-        } catch (Exception e) {
-            return null;
-        }
+        try { return LocalDate.parse(str.trim(), FMT); } catch (Exception e) { return null; }
     }
 
-    /**
-     * Sinh mã hợp đồng tiếp theo theo dạng "HĐ0001", "HĐ0002", ...
-     * @param lastId mã hiện tại cuối cùng trong danh sách
-     */
     public static String nextId(String lastId) {
         try {
             int num = Integer.parseInt(lastId.replace("HĐ", "").trim());
             return String.format("HĐ%04d", num + 1);
-        } catch (Exception e) {
-            return "HĐ0001";
-        }
+        } catch (Exception e) { return "HĐ0001"; }
     }
 }
