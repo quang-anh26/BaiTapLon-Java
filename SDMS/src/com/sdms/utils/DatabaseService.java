@@ -838,13 +838,8 @@ public class DatabaseService {
         }
     }
 
-    /**
-     * Cập nhật trạng thái hóa đơn (UNPAID / PENDING / PAID).
-     * Đồng thời đồng bộ cột paid (BIT) để các truy vấn thống kê cũ
-     * (monthRevenue, v.v...) vẫn hoạt động đúng — paid=1 khi và chỉ khi PAID.
-     */
-    public static boolean markInvoiceStatus(String invoiceId, String status) {
-        String norm = (status == null) ? Invoice.STATUS_UNPAID : status.trim().toUpperCase();
+
+     public static boolean markInvoicePaid(String invoiceId, boolean paid) {
         String sql = "UPDATE Invoices SET status=?, paid=? WHERE id=?";
         try (Connection con = DatabaseConnection.getConnection();
                 PreparedStatement ps = con.prepareStatement(sql)) {
@@ -859,13 +854,6 @@ public class DatabaseService {
         }
     }
 
-    /**
-     * Giữ tương thích ngược với code cũ: đánh dấu đã thanh toán/chưa thanh toán.
-     * true -> PAID, false -> UNPAID. Để chuyển sang PENDING, dùng markInvoiceStatus(id, "PENDING").
-     */
-    public static boolean markInvoicePaid(String invoiceId, boolean paid) {
-        return markInvoiceStatus(invoiceId, paid ? Invoice.STATUS_PAID : Invoice.STATUS_UNPAID);
-    }
 
     /** Xóa hóa đơn */
     public static boolean deleteInvoice(String id) {

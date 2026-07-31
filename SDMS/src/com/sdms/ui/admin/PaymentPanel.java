@@ -97,7 +97,7 @@ public class PaymentPanel extends JPanel {
         cbMonth = UITheme.comboBox(buildMonthOptions());
         cbMonth.setPreferredSize(new Dimension(130, 36));
 
-        cbStatus = UITheme.comboBox(new String[]{"Tất cả", "Đã thanh toán", "Chờ xử lí", "Chưa thanh toán"});
+        cbStatus = UITheme.comboBox(new String[]{"Tất cả", "Đã thanh toán", "Chưa thanh toán"});
         cbStatus.setPreferredSize(new Dimension(150, 36));
 
         JButton btnPrepay = UITheme.primaryBtn("⚡ Tạo hóa đơn trước hạn");
@@ -165,14 +165,14 @@ public class PaymentPanel extends JPanel {
             return l;
         });
 
-        // Renderer Trạng thái — badge màu (3 trạng thái)
+        // Renderer Trạng thái — badge màu
         table.getColumnModel().getColumn(8).setCellRenderer((t, v, sel, focus, row, col) -> {
-            String s = v == null ? "" : v.toString();
-            Color bg, fg;
-            if ("Đã thanh toán".equals(s))      { bg = UITheme.SUCCESS_BG; fg = UITheme.SUCCESS_TEXT; }
-            else if ("Chờ xử lí".equals(s))     { bg = UITheme.INFO_BG;    fg = UITheme.INFO_TEXT;    }
-            else                                 { bg = UITheme.WARNING_BG; fg = UITheme.WARNING_TEXT; }
-            JLabel lbl = UITheme.badge(s, bg, fg);
+            boolean paid = "Đã thanh toán".equals(v == null ? "" : v.toString());
+            JLabel lbl = UITheme.badge(
+                v == null ? "" : v.toString(),
+                paid ? UITheme.SUCCESS_BG : UITheme.WARNING_BG,
+                paid ? UITheme.SUCCESS_TEXT : UITheme.WARNING_TEXT
+            );
             lbl.setOpaque(true);
             lbl.setBackground(sel ? UITheme.PRIMARY_LIGHT : UITheme.WHITE);
             return lbl;
@@ -195,7 +195,7 @@ public class PaymentPanel extends JPanel {
         scroll.getViewport().setBackground(UITheme.WHITE);
         scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 
-        JLabel hint = new JLabel("💡 Double-click vào hóa đơn để xác nhận/xử lí thanh toán (Chờ xử lí → Thành công hoặc Hủy)");
+        JLabel hint = new JLabel("💡 Double-click vào hóa đơn chưa thanh toán để xác nhận thanh toán");
         hint.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 11));
         hint.setForeground(UITheme.TEXT_MUTED);
         hint.setBorder(new EmptyBorder(4, 0, 0, 0));
@@ -239,12 +239,12 @@ public class PaymentPanel extends JPanel {
     /** Cập nhật giá trị 3 summary cards từ dữ liệu mới nhất */
     private void updateSummaryCards() {
         List<Invoice> all = DatabaseService.getAllInvoices();
-        long totalRev   = all.stream().filter(Invoice::isPaid).mapToLong(Invoice::getTotal).sum();
-        long unpaidSum  = all.stream().filter(i -> !i.isPaid()).mapToLong(Invoice::getTotal).sum();
-        long pendingCnt = all.stream().filter(Invoice::isPending).count();
+        long totalRev = all.stream().filter(Invoice::isPaid).mapToLong(Invoice::getTotal).sum();
+        long pending  = all.stream().filter(i -> !i.isPaid()).mapToLong(Invoice::getTotal).sum();
+        long count    = all.stream().filter(i -> !i.isPaid()).count();
         if (lblRevValue     != null) lblRevValue.setText(String.format("%,d đ", totalRev));
-        if (lblPendingValue != null) lblPendingValue.setText(String.format("%,d đ", unpaidSum));
-        if (lblCountValue   != null) lblCountValue.setText(pendingCnt + " hóa đơn");
+        if (lblPendingValue != null) lblPendingValue.setText(String.format("%,d đ", pending));
+        if (lblCountValue   != null) lblCountValue.setText(count + " hóa đơn");
     }
 
     // ── Lọc & Refresh bảng ───────────────────────────────────────
@@ -259,11 +259,8 @@ public class PaymentPanel extends JPanel {
                 if (inv.getMonth() == null || !inv.getMonth().equals(month)) continue;
             }
             if (!"Tất cả".equals(status)) {
-                boolean match =
-                    ("Đã thanh toán".equals(status) && inv.isPaid()) ||
-                    ("Chờ xử lí".equals(status)     && inv.isPending()) ||
-                    ("Chưa thanh toán".equals(status) && inv.isUnpaid());
-                if (!match) continue;
+                boolean wantPaid = "Đã thanh toán".equals(status);
+                if (inv.isPaid() != wantPaid) continue;
             }
             if (!search.isEmpty()) {
                 String combined = (inv.getStudentName() == null ? "" : inv.getStudentName().toLowerCase())
@@ -289,13 +286,7 @@ public class PaymentPanel extends JPanel {
             return;
         }
 
-        if (inv.isPending()) {
-            // Hóa đơn sinh viên đã ấn "Thanh toán" — admin chỉ được Duyệt thành công hoặc Hủy
-            handlePendingInvoice(inv);
-            return;
-        }
-
-        // Hóa đơn còn "Chưa thanh toán" — admin xác nhận trực tiếp (VD: SV nộp tiền mặt tại VP)
+        // Dialog xác nhận chi tiết
         JPanel dlg = new JPanel(new BorderLayout(0, 8));
         dlg.setBorder(new EmptyBorder(8, 8, 8, 8));
 
@@ -314,102 +305,35 @@ public class PaymentPanel extends JPanel {
             "Xác nhận thanh toán", JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (r != JOptionPane.YES_OPTION) return;
 
-        confirmPaymentSuccess(inv);
-    }
+        if (DatabaseService.markInvoicePaid(inv.getId(), true)) {
+            inv.setPaid(true);
+            refreshTable();
+            updateSummaryCards();
 
-    /** Hóa đơn đang "Chờ xử lí" — admin chọn Thành công hoặc Hủy. */
-    private void handlePendingInvoice(Invoice inv) {
-        JPanel dlg = new JPanel(new BorderLayout(0, 8));
-        dlg.setBorder(new EmptyBorder(8, 8, 8, 8));
+            // Gửi thông báo xác nhận cho sinh viên
+            Notification noti = new Notification(
+                DatabaseService.nextNotificationId(),
+                "Xác nhận thanh toán tháng " + inv.getMonth(),
+                "Hóa đơn " + inv.getId() + " tháng " + inv.getMonth()
+                    + " của bạn đã được xác nhận thanh toán thành công. "
+                    + "Tổng tiền: " + String.format("%,d đ", inv.getTotal()) + ".",
+                Notification.Type.INVOICE,
+                Notification.Target.STUDENT,
+                inv.getStudentId(),
+                java.time.LocalDateTime.now(),
+                "Quản trị viên",
+                false, false
+            );
+            DatabaseService.addNotification(noti);
 
-        JLabel info = new JLabel(
-            "<html><b>Hóa đơn " + inv.getId() + " — 🕓 Chờ xử lí</b><br><br>"
-            + "Sinh viên: <b>" + inv.getStudentName() + "</b><br>"
-            + "Phòng: <b>" + inv.getRoomId() + "</b> — Tháng: <b>" + inv.getMonth() + "</b><br><br>"
-            + "Tiền phòng:&nbsp;&nbsp;&nbsp;" + String.format("%,d đ", inv.getRoomFee()) + "<br>"
-            + "Tiền điện:&nbsp;&nbsp;&nbsp;&nbsp;" + String.format("%,d đ", inv.getElectricFee()) + "<br>"
-            + "Tiền nước:&nbsp;&nbsp;&nbsp;&nbsp;" + String.format("%,d đ", inv.getWaterFee()) + "<br>"
-            + "<hr><b>Tổng cộng: " + String.format("%,d đ", inv.getTotal()) + "</b><br><br>"
-            + "Sinh viên đã gửi yêu cầu thanh toán. Vui lòng kiểm tra và chọn kết quả xử lí:</html>"
-        );
-        dlg.add(info, BorderLayout.CENTER);
-
-        Object[] options = {"✅ Thành công", "❌ Hủy", "Đóng"};
-        int r = JOptionPane.showOptionDialog(this, dlg,
-            "Xử lí yêu cầu thanh toán — " + inv.getId(),
-            JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE,
-            null, options, options[0]);
-
-        if (r == 0) {
-            confirmPaymentSuccess(inv);
-        } else if (r == 1) {
-            cancelPendingPayment(inv);
-        }
-        // r == 2 (Đóng) hoặc đóng dialog → không làm gì
-    }
-
-    /** Duyệt thành công: chuyển hóa đơn sang PAID + báo cho sinh viên. */
-    private void confirmPaymentSuccess(Invoice inv) {
-        if (!DatabaseService.markInvoiceStatus(inv.getId(), Invoice.STATUS_PAID)) {
+            JOptionPane.showMessageDialog(this,
+                "✅ Đã xác nhận thanh toán hóa đơn " + invoiceId + "!\n"
+                + "📨 Đã gửi thông báo tới sinh viên " + inv.getStudentName() + ".",
+                "Thành công", JOptionPane.INFORMATION_MESSAGE);
+        } else {
             JOptionPane.showMessageDialog(this,
                 "❌ Lưu thất bại! Kiểm tra kết nối database.", "Lỗi", JOptionPane.ERROR_MESSAGE);
-            return;
         }
-        inv.setStatus(Invoice.STATUS_PAID);
-        refreshTable();
-        updateSummaryCards();
-
-        Notification noti = new Notification(
-            DatabaseService.nextNotificationId(),
-            "Xác nhận thanh toán tháng " + inv.getMonth(),
-            "Hóa đơn " + inv.getId() + " tháng " + inv.getMonth()
-                + " của bạn đã được xác nhận thanh toán thành công. "
-                + "Tổng tiền: " + String.format("%,d đ", inv.getTotal()) + ".",
-            Notification.Type.INVOICE,
-            Notification.Target.STUDENT,
-            inv.getStudentId(),
-            java.time.LocalDateTime.now(),
-            "Quản trị viên",
-            false, false
-        );
-        DatabaseService.addNotification(noti);
-
-        JOptionPane.showMessageDialog(this,
-            "✅ Đã xác nhận thanh toán hóa đơn " + inv.getId() + "!\n"
-            + "📨 Đã gửi thông báo tới sinh viên " + inv.getStudentName() + ".",
-            "Thành công", JOptionPane.INFORMATION_MESSAGE);
-    }
-
-    /** Hủy yêu cầu: đưa hóa đơn về UNPAID để sinh viên thanh toán lại + báo cho sinh viên. */
-    private void cancelPendingPayment(Invoice inv) {
-        if (!DatabaseService.markInvoiceStatus(inv.getId(), Invoice.STATUS_UNPAID)) {
-            JOptionPane.showMessageDialog(this,
-                "❌ Lưu thất bại! Kiểm tra kết nối database.", "Lỗi", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        inv.setStatus(Invoice.STATUS_UNPAID);
-        refreshTable();
-        updateSummaryCards();
-
-        Notification noti = new Notification(
-            DatabaseService.nextNotificationId(),
-            "Thanh toán không thành công — Hóa đơn " + inv.getMonth(),
-            "Yêu cầu thanh toán cho hóa đơn " + inv.getId() + " tháng " + inv.getMonth()
-                + " đã bị từ chối/hủy. Vui lòng kiểm tra lại và thanh toán lại. "
-                + "Tổng tiền: " + String.format("%,d đ", inv.getTotal()) + ".",
-            Notification.Type.INVOICE,
-            Notification.Target.STUDENT,
-            inv.getStudentId(),
-            java.time.LocalDateTime.now(),
-            "Quản trị viên",
-            false, false
-        );
-        DatabaseService.addNotification(noti);
-
-        JOptionPane.showMessageDialog(this,
-            "❌ Đã hủy yêu cầu thanh toán hóa đơn " + inv.getId() + ".\n"
-            + "📨 Đã gửi thông báo tới sinh viên " + inv.getStudentName() + ".",
-            "Đã hủy", JOptionPane.INFORMATION_MESSAGE);
     }
 
     // ── Tạo hóa đơn trước hạn ────────────────────────────────────
@@ -647,7 +571,7 @@ public class PaymentPanel extends JPanel {
                     inv.getElectricFee(),
                     inv.getWaterFee(),
                     inv.getTotal(),
-                    inv.getStatusText()
+                    inv.isPaid() ? "Đã thanh toán" : "Chưa thanh toán"
                 );
             }
             JOptionPane.showMessageDialog(this,

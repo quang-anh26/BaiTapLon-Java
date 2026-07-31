@@ -122,24 +122,10 @@ public class StudentInvoicePanel extends JPanel {
     // ── Banner trạng thái lớn ─────────────────────────────────────
 
     private JPanel buildStatusBanner() {
-        boolean paid    = currentInvoice.isPaid();
-        boolean pending = currentInvoice.isPending();
-
-        Color bg, fg, border;
-        String icon, statusLabel, dueInfo;
-        if (paid) {
-            bg = UITheme.SUCCESS_BG; fg = UITheme.SUCCESS_TEXT; border = new Color(0x6EE7B7);
-            icon = "✅"; statusLabel = "Đã thanh toán";
-            dueInfo = "Cảm ơn bạn đã thanh toán đúng hạn!";
-        } else if (pending) {
-            bg = UITheme.INFO_BG; fg = UITheme.INFO_TEXT; border = new Color(0x93C5FD);
-            icon = "🕓"; statusLabel = "Chờ xử lí";
-            dueInfo = "Yêu cầu thanh toán đã được gửi, đang chờ quản trị viên xác nhận.";
-        } else {
-            bg = UITheme.WARNING_BG; fg = UITheme.WARNING_TEXT; border = new Color(0xFCD34D);
-            icon = "⏳"; statusLabel = "Chưa thanh toán";
-            dueInfo = "Hạn thanh toán: 15/" + currentInvoice.getMonth() + ". Vui lòng thanh toán đúng hạn.";
-        }
+        boolean paid   = currentInvoice.isPaid();
+        Color   bg     = paid ? UITheme.SUCCESS_BG   : UITheme.WARNING_BG;
+        Color   fg     = paid ? UITheme.SUCCESS_TEXT : UITheme.WARNING_TEXT;
+        Color   border = paid ? new Color(0x6EE7B7)  : new Color(0xFCD34D);
 
         JPanel banner = new JPanel(new BorderLayout(16, 0));
         banner.setBackground(bg);
@@ -150,13 +136,16 @@ public class StudentInvoicePanel extends JPanel {
         banner.setAlignmentX(LEFT_ALIGNMENT);
         banner.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
 
-        JLabel lblIcon = new JLabel(icon);
-        lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 36));
+        JLabel icon = new JLabel(paid ? "✅" : "⏳");
+        icon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 36));
 
-        JLabel lblStatus = new JLabel(statusLabel);
+        JLabel lblStatus = new JLabel(paid ? "Đã thanh toán" : "Chưa thanh toán");
         lblStatus.setFont(UITheme.FONT_H2);
         lblStatus.setForeground(fg);
 
+        String dueInfo = paid
+            ? "Cảm ơn bạn đã thanh toán đúng hạn!"
+            : "Hạn thanh toán: 15/" + currentInvoice.getMonth() + ". Vui lòng thanh toán đúng hạn.";
         JLabel lblDue = new JLabel(dueInfo);
         lblDue.setFont(UITheme.FONT_SMALL);
         lblDue.setForeground(fg);
@@ -171,9 +160,8 @@ public class StudentInvoicePanel extends JPanel {
         lblTotal.setForeground(fg);
         lblTotal.setHorizontalAlignment(SwingConstants.RIGHT);
 
-        String btnText = paid ? "✓ Đã thanh toán" : (pending ? "🕓 Đang chờ duyệt" : "💳 Thanh toán ngay");
-        JButton btnPay = UITheme.primaryBtn(btnText);
-        btnPay.setEnabled(!paid && !pending);
+        JButton btnPay = UITheme.primaryBtn(paid ? "✓ Đã thanh toán" : "💳 Thanh toán ngay");
+        btnPay.setEnabled(!paid);
         btnPay.addActionListener(e -> processPayment());
 
         JPanel rightPanel = new JPanel(new BorderLayout(0, 6));
@@ -181,7 +169,7 @@ public class StudentInvoicePanel extends JPanel {
         rightPanel.add(lblTotal, BorderLayout.CENTER);
         rightPanel.add(btnPay,   BorderLayout.SOUTH);
 
-        banner.add(lblIcon,    BorderLayout.WEST);
+        banner.add(icon,       BorderLayout.WEST);
         banner.add(textPanel,  BorderLayout.CENTER);
         banner.add(rightPanel, BorderLayout.EAST);
         return banner;
@@ -394,7 +382,7 @@ public class StudentInvoicePanel extends JPanel {
     // ── Xử lý thanh toán — lưu vào DB ────────────────────────────
 
     private void processPayment() {
-        if (currentInvoice == null || currentInvoice.isPaid() || currentInvoice.isPending()) return;
+        if (currentInvoice == null || currentInvoice.isPaid()) return;
 
         String[] methods = {"Chuyển khoản ngân hàng", "Tiền mặt tại văn phòng"};
         String method = (String) JOptionPane.showInputDialog(this,
@@ -406,23 +394,22 @@ public class StudentInvoicePanel extends JPanel {
             JOptionPane.QUESTION_MESSAGE, null, methods, methods[0]);
 
         if (method != null) {
-            // Chuyển hóa đơn sang trạng thái "Chờ xử lí" — chờ admin duyệt
-            boolean saved = DatabaseService.markInvoiceStatus(currentInvoice.getId(), Invoice.STATUS_PENDING);
+            // Lưu vào DB trước
+            boolean saved = DatabaseService.markInvoicePaid(currentInvoice.getId(), true);
             if (!saved) {
                 JOptionPane.showMessageDialog(this,
-                    "❌ Không thể gửi yêu cầu thanh toán vào hệ thống. Vui lòng thử lại.",
+                    "❌ Không thể cập nhật thanh toán vào hệ thống. Vui lòng thử lại.",
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
             // Cập nhật local sau khi DB thành công
-            currentInvoice.setStatus(Invoice.STATUS_PENDING);
+            currentInvoice.setPaid(true);
             JOptionPane.showMessageDialog(this,
-                "<html>🕓 <b>Đã gửi yêu cầu thanh toán!</b><br>"
+                "<html>✅ <b>Thanh toán thành công!</b><br>"
                 + "Số tiền: " + fmt(currentInvoice.getTotal()) + "<br>"
-                + "Phương thức: " + method + "<br><br>"
-                + "Hóa đơn đang ở trạng thái <b>Chờ xử lí</b>, vui lòng chờ quản trị viên xác nhận.</html>",
-                "Đã gửi yêu cầu", JOptionPane.INFORMATION_MESSAGE);
+                + "Phương thức: " + method + "</html>",
+                "Thành công", JOptionPane.INFORMATION_MESSAGE);
 
             // Refresh giao diện
             removeAll();
