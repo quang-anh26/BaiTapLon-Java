@@ -479,8 +479,18 @@ public class RoomPanel extends JPanel {
                 return;
             }
             try {
-                int floor    = Integer.parseInt(tfFloor.getText().trim());
-                int capacity = Integer.parseInt(tfCapacity.getText().trim());
+                  int floor    = Integer.parseInt(tfFloor.getText().trim());
+                  int capacity = Integer.parseInt(tfCapacity.getText().trim());
+
+                  int maxPerFloor = DatabaseService.getMaxRoomPerFloor();
+                  int current = DatabaseService.countRoomsByFloor(floor, id);
+                  if (current >= maxPerFloor) {
+                  JOptionPane.showMessageDialog(dlg,
+                      "⚠ Tầng " + floor + " đã đạt giới hạn " + maxPerFloor + " phòng (hiện có " + current + " phòng)!",
+                      "Không thể thêm phòng", JOptionPane.WARNING_MESSAGE);
+                   return;
+                }
+
                 Room r = new Room(id, id, cbType.getSelectedItem().toString(), floor, capacity, 0);
                 if (DatabaseService.addRoom(r)) {
                     JOptionPane.showMessageDialog(dlg, "✅ Đã thêm phòng " + id + " thành công!", "Thành công", JOptionPane.INFORMATION_MESSAGE);

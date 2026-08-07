@@ -55,6 +55,32 @@ public class DatabaseService {
         return list;
     }
 
+    /** Đếm số phòng hiện có trong 1 tầng, loại trừ 1 mã phòng (dùng khi sửa) */
+    public static int countRoomsByFloor(int floor, String excludeRoomId) {
+        String sql = "SELECT count(*) FROM Rooms WHERE floor=? AND id<>?";
+        try (Connection con = DatabaseConnection.getConnection();
+                PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, floor);
+            ps.setString(2, excludeRoomId == null ? "" : excludeRoomId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    /** Lấy giới hạn số phòng tối đa mỗi tầng từ bảng settings (mặc định 10) */
+    public static int getMaxRoomPerFloor() {
+        String val = getSetting("max_room_per_floor");
+        try {
+            return val != null ? Integer.parseInt(val.trim()) : 10;
+        } catch (NumberFormatException e) {
+            return 10;
+        }
+    }
+
     /** Thêm phòng mới */
     public static boolean addRoom(Room r) {
         String sql = "INSERT INTO Rooms (id, name, type, floor, capacity, occupied) VALUES (?,?,?,?,?,?)";
